@@ -601,6 +601,14 @@ async function main() {
 	await send('Network.emulateNetworkConditions',
 		{ offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
 
+	// 留一张 404 页面截图。它是品牌的一部分，但平时没人会去看，
+	// 只有截图能让"这个页面到底长什么样"进入 review 范围。
+	// 放在最后：这次导航是 404（会被 Network 记录），而上面两项收尾检查
+	// 用的都是离线前的快照，不受影响。
+	await send('Page.navigate', { url: BASE + '/no-such-page-' + Date.now() });
+	await sleep(1500);
+	await screenshot('404.png');
+
 	// ---------- 收尾 ----------
 	// 用离线之前的快照结算：断网期间的请求失败是测试自己造成的，不算站点问题。
 	check('no console errors / exceptions', errorsBeforeOffline.length === 0,
