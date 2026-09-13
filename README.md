@@ -74,8 +74,10 @@ npm run serve        # webpack dev server，改代码自动重载
 | 构建期页面 | `scripts/lib/render.js` 把 `src/template/*` 渲染成根目录的 `index.html` / `manifest.webmanifest` / `robots.txt` / `sitemap.xml` |
 | 站点清单 | 同上 |
 
-> `index.html`、`manifest.webmanifest`、`robots.txt`、`sitemap.xml` 都是**构建产物**，不要直接手改，
-> 改模板 `src/template/` 或品牌配置。
+> `index.html`、`404.html`、`service-worker.js`、`manifest.webmanifest`、`robots.txt`、`sitemap.xml`
+> 都是**构建产物**，不要直接手改，改模板 `src/template/` 或品牌配置。
+> 例外是 `favicon.ico`：它由 `npm run icons` 生成，和 `images/*.png` 一样要提交进仓库
+> （生成它依赖的 sharp 是可选依赖，不能指望每台机器都能重跑）。
 
 ## 换 Logo
 
@@ -83,7 +85,7 @@ npm run serve        # webpack dev server，改代码自动重载
 | --- | --- | --- |
 | `images/logo.svg` | 页面左上角 | **必须是纯黑单色**。深色主题会用 CSS `filter: invert()` 反成白色，带颜色会变形 |
 | `images/logo-color.svg` | 关于弹窗 | 彩色版本，任意配色 |
-| `images/favicon.svg` | favicon + PWA 图标源 | 改完跑 `npm run icons` 重新生成 `images/favicon.png` 与 `images/manifest/*.png` |
+| `images/favicon.svg` | favicon + PWA 图标源 | 改完跑 `npm run icons` 重新生成 `images/favicon.png`、`images/manifest/*.png` 与根目录 `favicon.ico` |
 
 ---
 
@@ -93,6 +95,9 @@ npm run serve        # webpack dev server，改代码自动重载
 ImageForge/
 ├── brand.config.json        品牌唯一真源
 ├── index.html               ← 构建产物（由 src/template/index.html 生成）
+├── 404.html                 ← 构建产物；Cloudflare Pages 认它作自定义错误页
+├── service-worker.js        ← 构建产物；PWA 离线缓存，含 bundle 指纹
+├── favicon.ico              ← 由 npm run icons 生成（要提交，sharp 是可选依赖）
 ├── manifest.webmanifest     ← 构建产物
 ├── robots.txt / sitemap.xml ← 构建产物
 ├── package.json
@@ -110,7 +115,7 @@ ImageForge/
 │       ├── app.js           单例注册中心
 │       ├── config.js        编辑器默认参数与工具定义
 │       ├── config-menu.js   菜单结构（不含任何硬编码品牌链接）
-│       ├── core/            base-layers / base-tools / base-gui / gui-*
+│       ├── core/            base-layers / base-tools / base-gui / gui-* / service-worker
 │       ├── actions/         撤销重做动作
 │       ├── modules/         edit|effects|file|help|image|layer|tools|view
 │       ├── tools/           各绘图工具
@@ -118,7 +123,7 @@ ImageForge/
 ├── scripts/
 │   ├── build.js             构建编排：打包 → 渲染 → 预压缩
 │   ├── pack.js              挑出上线文件 → build/ + zip（含资源引用自检）
-│   ├── gen-icons.js         矢量源 → 全尺寸 PNG 图标（sharp 为可选依赖）
+│   ├── gen-icons.js         矢量源 → 全尺寸 PNG 图标 + favicon.ico（sharp 为可选依赖）
 │   ├── serve.js             部署行为仿真预览服务器
 │   └── lib/                 brand.js / render.js / zip.js
 ├── images/                  静态资源（构建产物直接引用，路径不可改）
@@ -126,6 +131,7 @@ ImageForge/
 ├── deploy/                  nginx.conf + cloudflare/_headers + DEPLOY.md
 ├── tools/translator/        语言包辅助工具
 ├── tools/verify/verify.js   Chrome 无头验收脚本（npm run verify）
+├── tools/verify/features.js 功能探测：画笔真的画得出像素、41 个工具可切换（npm run probe）
 ├── examples/                嵌入集成示例
 ├── dist/                    bundle.js (+ .gz / .br)
 ├── build/                   ← npm run pack 产出，上传这个目录
@@ -152,7 +158,7 @@ npm run ship
 
 > **不要上传工程根目录。** 本机实测根目录共 15,967 个文件（`node_modules/` 占 15,599），
 > 而 Cloudflare Pages 控制台拖拽上传的上限是 **1,000 个文件**，必然失败。
-> 要上传的永远是 `build/`：按 Cloudflare 目标打包后是 **50 个文件**。
+> 要上传的永远是 `build/`：按 Cloudflare 目标打包后是 **53 个文件**。
 
 ### Cloudflare Pages（Git 集成，推荐）
 
@@ -225,5 +231,9 @@ npm run ship:cloudflare
 - 新增 `?v=` 内容指纹、预压缩产物、部署配置与文档
 - 移除 `ads.txt` 与 AdSense 发布商 ID
 - 修复上游 `index.html` 引用不存在的 `dist/manifest.json` 导致的静默 404
+- 补齐 PWA：新增 service worker（装到桌面后断网也能打开）与品牌化 `404.html`，
+  顺带修掉"任何路径都返回 200 + 首页"的软 404
+- 移除上游内置的公开 demo key（Pixabay / Google Fonts），改为在
+  `brand.config.json` 的 `services` 段配置；未配置时给出明确提示而不是静默失败
 
 第三方库的版权声明随构建产物一起输出在 `dist/bundle.js.LICENSE.txt`。

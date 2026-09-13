@@ -34,8 +34,8 @@ release/imageforge-site-1.0.0.zip   ← 同一份内容的 zip
 
 | 目标 | 命令 | 文件数 | 目录体积 | zip |
 | --- | --- | --- | --- | --- |
-| generic（自建服务器） | `npm run ship` | 51 | 1.8 MB | 约 900 KB |
-| cloudflare | `npm run ship:cloudflare` | 50 | 1.3 MB | 约 390 KB |
+| generic（自建服务器） | `npm run ship` | 54 | 1.9 MB | 约 957 KB |
+| cloudflare | `npm run ship:cloudflare` | 53 | 1.4 MB | 约 412 KB |
 
 （差异原因见 3.4。无论哪个目标都远低于 Cloudflare 拖拽上传的 1,000 文件上限；
 但工程根目录是 **15,967 个文件**，所以永远不要上传根目录。）
@@ -135,8 +135,8 @@ sudo nginx -t && sudo systemctl reload nginx
 | 控制台**拖拽**上传 | **1,000** | 25 MiB |
 | **Wrangler** CLI 上传 | 20,000 | 25 MiB |
 
-本项目按 Cloudflare 目标打包后是 **50 个文件 / 约 1.3 MB**，最大单文件 `dist/bundle.js`
-约 1.2 MB —— 两条限制都远没碰到（占用 5%）。
+本项目按 Cloudflare 目标打包后是 **53 个文件 / 约 1.4 MB**，最大单文件 `dist/bundle.js`
+约 1.2 MB —— 两条限制都远没碰到（占用 5.3%）。
 
 **但是：千万不要把工程目录整个拖进去。** 工程根目录本机实测 **15,967 个文件**，
 其中 `node_modules/` 一个就占 15,599 个，必然超限失败。要上传的**只有 `build/`**。
@@ -294,7 +294,7 @@ Cloudflare 文档说得很直白：Wrangler 配置文件里一旦出现 `pages_b
 
 走**本地上传**（Direct Upload）的话确认：
 
-- [ ] 上传的是 **`build/`**（50 个文件），不是工程根目录（15,967 个文件，必然超限）
+- [ ] 上传的是 **`build/`**（53 个文件），不是工程根目录（15,967 个文件，必然超限）
 - [ ] 用的是 `npm run ship:cloudflare`，所以 `build/_headers` 在位、没有多余的 `.gz` / `.br`
 
 ## 5. 缓存失效机制
@@ -315,6 +315,25 @@ Cloudflare 文档说得很直白：Wrangler 配置文件里一旦出现 `pages_b
 ⚠️ 因此两条规则必须同时成立，否则会出现"用户永远停在旧版本"：
 `dist/` 长缓存 **且** `index.html` 不缓存。
 
+### 5.1 Service Worker（离线）
+
+`service-worker.js` 由 `src/template/service-worker.js` 在构建时注入指纹产出，
+注册逻辑在 `src/js/core/service-worker.js`。缓存按资源类型分开：
+
+- 导航请求（HTML）**network-first**，断网才回落到缓存 —— 缓存优先会把用户
+  永久钉在旧页面（连着旧 bundle）上；
+- `dist/` 与 `images/` 下带指纹的资源 **cache-first**，内容变了 URL 就变，命中即可信；
+- 跨域响应**不缓存**（opaque 响应按约 7 MB/条计入配额，几十张图就能撑满）。
+
+两个部署前提，缺一个它就废一半：
+
+1. `service-worker.js` 必须 `no-cache`（`_headers` / `nginx.conf` 里都配了）。
+   给了长缓存，发版后用户可能几十小时都拿不到新版本。
+2. 只有在 HTTPS 或 localhost 下才会注册 —— 自建服务器用 HTTP 跑时它是静默跳过的。
+
+更新不会静默打断用户：新版本装好后先停在 waiting，弹一条提示，点了才切换。
+原因是编辑器里可能有没保存的图。
+
 ## 6. 本地验证部署行为
 
 ```bash
@@ -326,6 +345,7 @@ npm run verify      # 另一个终端：用真实 Chrome 打开构建产物做�
 `npm run preview` **默认服务 `build/`**，也就是你即将上传的那份文件本身 ——
 所以"本地看起来正常"和"上线后别人看起来正常"是同一件事，不存在只在本地好的情况。
 （`build/` 还没生成时会自动回退到工程根目录；加 `--source` 可强制服务工程根目录。）
+未命中的路径会像生产一样返回 `404.html` + 404 状态码，不是一句占位文本。
 
 这个服务器是刻意按生产静态服务器的行为写的，用来在上线前验证：
 
@@ -341,17 +361,24 @@ npm run verify      # 另一个终端：用真实 Chrome 打开构建产物做�
 ### `npm run verify` 做了什么
 
 `preview` 只能靠肉眼，`verify`（`tools/verify/verify.js`）把它变成可重复的验收：
-零第三方依赖，用系统已装的 Chrome + CDP 直接跑，覆盖 22 项检查 ——
+零第三方依赖，用系统已装的 Chrome + CDP 直接跑，覆盖 56 项检查 ——
 
 - 静态层：首屏 200、`index.html` 不缓存、`?v=` 指纹在位、`dist/bundle.js` 可达、
   `.webmanifest` 的 MIME、`_headers` 对外是 404
+- 错误页 / 图标 / 离线：未知路径返回**真 404**（不是 200 + 首页的软 404）、
+  404 页带品牌名与 `noindex`、`/favicon.ico` 是真图标（验 ICO 文件头，
+  排除"返回了一个 HTML 页面"）、`service-worker.js` 可达且其缓存名与
+  本次 bundle 指纹一致
 - 渲染层：标题含品牌名、`<html lang>`、DOM 里没有残留 `{{占位符}}` 或
   `yourname` / `example.com` / `freeps` 之类的旧品牌串、运行时 `AppConfig.LANG`、
   画布已挂载且有尺寸、主菜单已渲染
 - 交互层：真的点开 `Help → About`，校验弹窗里的品牌名 / 仓库地址 / 邮箱，
   以及上游署名（miniPaint + MIT）仍在
 - 全局：控制台零 error / 零未捕获异常、零个 ≥400 的响应
-- 截图落在 `.verify/home.png`、`.verify/about.png`
+- service worker 真的注册并接管了页面、precache 有内容
+- **离线**：用 CDP 把网络掐断后重新加载，页面仍要正常起来
+  （画布挂载 + 菜单渲染）—— 这是 PWA 存在的唯一理由，静态检查证明不了
+- 截图落在 `.verify/home.png`、`.verify/about.png`、`.verify/05-offline.png`
 
 期望值**从 `brand.config.json` 读**，不是写死的。改了品牌配置跑一遍，
 能立刻看出页面有没有跟上。Chrome 路径可用 `CHROME=` 覆盖，被测地址用 `BASE=` 覆盖
