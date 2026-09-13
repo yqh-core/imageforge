@@ -13,9 +13,11 @@
  *   npm run verify
  *
  * 环境变量：
- *   BASE    被测地址，默认 http://127.0.0.1:4173
- *   CHROME  Chrome 可执行文件路径（各平台默认值见下）
- *   OUT     截图输出目录，默认 .verify/
+ *   BASE          被测地址，默认 http://127.0.0.1:4173
+ *                 指向线上域名即可做线上验收：BASE=https://<项目>.pages.dev
+ *   CHROME        Chrome 可执行文件路径（各平台默认值见下）
+ *   OUT           截图输出目录，默认 .verify/
+ *   VERIFY_PROXY  需要经代理访问外网时指定，如 `VERIFY_PROXY=$HTTPS_PROXY`
  */
 
 const { spawn } = require('child_process');
@@ -89,14 +91,33 @@ async function main() {
 	check('webmanifest MIME correct',
 		/application\/manifest\+json/.test(mani.headers.get('content-type') || ''),
 		mani.headers.get('content-type'));
+	// _headers 的正确不变量是「规则文件本身不能被当成静态资源读出来」，
+	// 而不是「必须 404」。本地预览服务器会直接 404；但 Cloudflare Pages 上
+	// 未匹配的路径会回落到 index.html（SPA 兜底，HTTP 200），此时 /_headers
+	// 返回 200 是兜底行为、不是泄漏。用实际规则文件内容去比对才准，
+	// 否则线上跑 verify 会出现假失败。
+	const rulesFile = path.join(__dirname, '../../deploy/cloudflare/_headers');
+	const rulesText = fs.existsSync(rulesFile) ? fs.readFileSync(rulesFile, 'utf8') : '';
+	const ruleLine = rulesText.split('\n').find(l => /^\s*[/*]/.test(l) && !/^\s*#/.test(l)) || '/*';
 	const hdr = await http(BASE + '/_headers');
-	check('_headers is NOT publicly served', hdr.status === 404, 'HTTP ' + hdr.status);
+	const leaked = hdr.status === 200 && hdr.body.indexOf(ruleLine.trim()) !== -1
+		&& /max-age=31536000|X-Content-Type-Options/.test(hdr.body);
+	check('_headers rule file is not served as an asset', !leaked,
+		'HTTP ' + hdr.status + (hdr.status === 200 ? ' (SPA fallback -> index.html)' : ''));
 
 	// ---------- 渲染层：Chrome ----------
+	// 本地预览时绕开代理（有些环境把 loopback 也塞进代理，会连不上）；
+	// 测线上时默认直连 —— 很多环境的 HTTP(S)_PROXY 是本地 MITM 代理，
+	// 静默套上去反而会让 Chrome 撞证书错误。确实需要代理就显式给 VERIFY_PROXY。
+	const isLocalBase = /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:|\/|$)/.test(BASE);
+	const proxyArgs = isLocalBase
+		? ['--no-proxy-server', '--proxy-bypass-list=<-loopback>']
+		: (process.env.VERIFY_PROXY ? ['--proxy-server=' + process.env.VERIFY_PROXY] : []);
+
 	const profile = path.join(os.tmpdir(), 'cdp-if-' + Date.now());
 	const chrome = spawn(CHROME, [
 		'--headless=new', '--disable-gpu', '--no-sandbox', '--hide-scrollbars',
-		'--no-proxy-server', '--proxy-bypass-list=<-loopback>',
+		...proxyArgs,
 		'--window-size=1440,900', '--remote-debugging-port=' + PORT,
 		'--user-data-dir=' + profile, 'about:blank',
 	], { stdio: 'ignore' });
