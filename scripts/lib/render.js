@@ -13,9 +13,17 @@ const { ROOT, buildTokens } = require('./brand.js');
 const TEMPLATE_DIR = path.join(ROOT, 'src', 'template');
 const BUNDLE_PATH = path.join(ROOT, 'dist', 'bundle.js');
 
-/** 产物文件名 → 是否参与 `?v=` 版本注入 */
+/**
+ * 产物文件名 → 是否参与 `?v=` 版本注入
+ *
+ * 404.html / service-worker.js 也走同一套渲染，理由和 index.html 一样：
+ * 品牌名、主题色、站点地址、构建指纹都得来自 brand.config.json + 本次构建，
+ * 不能出现"改了品牌但错误页还写着旧名字"这种角落。
+ */
 const OUTPUTS = [
 	{ template: 'index.html', output: 'index.html', injectBundleVersion: true },
+	{ template: '404.html', output: '404.html' },
+	{ template: 'service-worker.js', output: 'service-worker.js', injectBundleVersion: true },
 	{ template: 'manifest.webmanifest', output: 'manifest.webmanifest' },
 	{ template: 'robots.txt', output: 'robots.txt' },
 	{ template: 'sitemap.xml', output: 'sitemap.xml' },

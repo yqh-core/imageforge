@@ -17,6 +17,13 @@
 	<meta name="apple-mobile-web-app-capable" content="yes" />
 
 	<link rel="canonical" href="{{BRAND_SITE}}" />
+	<!--
+		图标给三种格式，覆盖不同来源的请求：
+		  .ico  地址栏 / 书签 / 爬虫会无条件请求 /favicon.ico，缺它就会拿到一个 HTML 页面
+		  .svg  矢量，现代浏览器缩放不糊
+		  .png  兜底给不认 svg 图标的老浏览器
+	-->
+	<link rel="icon" href="favicon.ico" sizes="any" />
 	<link rel="icon" type="image/svg+xml" href="images/favicon.svg" />
 	<link rel="icon" sizes="192x192" href="images/favicon.png" />
 	<link rel="apple-touch-icon" href="images/manifest/192x192.png" />

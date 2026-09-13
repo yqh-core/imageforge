@@ -63,6 +63,22 @@
 /manifest.webmanifest
 	Cache-Control: public, max-age=0, must-revalidate
 
+# ---------------------------------------------------------------- Service Worker
+# 这一条必须 no-cache，是 PWA 能不能更新的关键。
+#
+# 浏览器对 service worker 脚本有自己一套缓存逻辑，但发版时我们希望它**立刻**
+# 被重新拉取：新 SW 一装上就会检测到 bundle 指纹变了，进而提示用户刷新。
+# 如果这里给了长缓存，用户可能几十小时都拿不到新版本，而站点自己以为已经发了。
+/service-worker.js
+	Cache-Control: public, max-age=0, must-revalidate
+
+# ---------------------------------------------------------------- 404 页面
+# Cloudflare Pages 认根目录下的 404.html 作自定义错误页：存在时未命中路径返回
+# 404 状态码 + 这个页面，不存在时统一回落成 200 + index.html（软 404，
+# 会被搜索引擎当成一堆内容重复的页面）。所以这个文件必须上线。
+/404.html
+	Cache-Control: public, max-age=0, must-revalidate
+
 # ---------------------------------------------------------------- 带内容指纹的构建产物
 # URL 上带 ?v=<内容指纹>，内容一变 URL 就变，所以可以永久缓存
 /dist/*
@@ -72,4 +88,8 @@
 # 文件名不含指纹，用中等时长。改了 logo / 图标想立刻生效的话，
 # 要么改文件名，要么等这个 TTL 过去。
 /images/*
+	Cache-Control: public, max-age=2592000
+
+# 根目录的 favicon.ico 同理（地址栏、书签、各类爬虫会无条件请求它）
+/favicon.ico
 	Cache-Control: public, max-age=2592000

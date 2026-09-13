@@ -5,6 +5,11 @@
  * 源文件改了只跑一条命令即可全部同步，避免手工导出六份不一致的 PNG。
  *
  * 用法： node scripts/gen-icons.js
+ *
+ * 产出清单：
+ *   images/favicon.png          192px，页面 <link rel="icon"> 用
+ *   images/manifest/*.png       7 档，PWA 清单声明的启动图标
+ *   favicon.ico                 16/32/48 三档合一的传统图标，见 buildIco()
  */
 
 const fs = require('fs');
@@ -47,6 +52,66 @@ const TARGETS = [
 	{ file: path.join(MANIFEST_DIR, '512x512.png'), size: 512 },
 ];
 
+/**
+ * favicon.ico 里放哪几档。
+ *
+ * 为什么还要 ico：现代浏览器认 <link rel="icon">，但地址栏、书签栏、RSS 阅读器、
+ * 各种爬虫和部分老工具会**无条件去请求 /favicon.ico**。没有这个文件时，
+ * Cloudflare Pages 会把它当普通路径回落到 index.html（返回 200 + HTML），
+ * 于是日志里全是"图标请求返回了一个网页"。放在站点根目录，这个请求就有正解了。
+ *
+ * 只要 16/32/48 三档：这是 Windows 外壳和浏览器标签实际会取的尺寸，
+ * 再往上加（64/128/256）只会让文件变大，没有可见收益。
+ */
+const ICO_SIZES = [16, 32, 48];
+const ICO_FILE = path.join(ROOT, 'favicon.ico');
+
+/**
+ * 把若干张 PNG 直接封装成 .ico。
+ *
+ * 说明：sharp 只支持**读取** ico，不支持写出，所以这里手搓容器。
+ * 好消息是 ico 从 Vista 起就允许条目内直接嵌 PNG 数据（不要求 BMP/DIB），
+ * 所有现代浏览器和系统都认，于是"封装"只是拼几十字节的头，不需要做像素转换。
+ *
+ * 结构（小端）：
+ *   ICONDIR        6 字节   reserved(2)=0 type(2)=1 count(2)
+ *   ICONDIRENTRY   16 字节 × count
+ *   image data     按条目顺序紧跟其后，偏移由条目里的 imageOffset 指向
+ */
+function buildIco(entries) {
+	const header = Buffer.alloc(6);
+	header.writeUInt16LE(0, 0);            // reserved，必须为 0
+	header.writeUInt16LE(1, 2);            // 1 = icon，2 = cursor
+	header.writeUInt16LE(entries.length, 4);
+
+	let offset = 6 + 16 * entries.length;
+	const dir = [];
+
+	for (const entry of entries) {
+		const d = Buffer.alloc(16);
+		// 宽高各 1 字节，256 用 0 表示。这里最大 48，直接写。
+		d.writeUInt8(entry.size, 0);
+		d.writeUInt8(entry.size, 1);
+		d.writeUInt8(0, 2);                 // 调色板色数，真彩色填 0
+		d.writeUInt8(0, 3);                 // reserved
+		d.writeUInt16LE(1, 4);              // color planes
+		d.writeUInt16LE(32, 6);             // 每像素位数
+		d.writeUInt32LE(entry.png.length, 8);
+		d.writeUInt32LE(offset, 12);
+		dir.push(d);
+		offset += entry.png.length;
+	}
+
+	return Buffer.concat([header, ...dir, ...entries.map(e => e.png)]);
+}
+
+async function render(svg, size, extra) {
+	const pipeline = sharp(svg, { density: 600 })
+		.resize(size, size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+		.png(Object.assign({ compressionLevel: 9, palette: true }, extra || {}));
+	return pipeline.toBuffer();
+}
+
 async function main() {
 	if (!fs.existsSync(SOURCE)) {
 		throw new Error('缺少矢量源文件: images/favicon.svg');
@@ -61,17 +126,26 @@ async function main() {
 	console.log('source  images/favicon.svg');
 
 	for (const target of TARGETS) {
-		await sharp(svg, { density: 600 })
-			.resize(target.size, target.size, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-			.png({ compressionLevel: 9, palette: true })
-			.toFile(target.file);
+		const buf = await render(svg, target.size);
+		fs.writeFileSync(target.file, buf);
 
-		const size = fs.statSync(target.file).size;
 		console.log('  → ' + path.relative(ROOT, target.file).replace(/\\/g, '/').padEnd(30)
-			+ target.size + 'x' + target.size + '  ' + (size / 1024).toFixed(1) + ' KB');
+			+ target.size + 'x' + target.size + '  ' + (buf.length / 1024).toFixed(1) + ' KB');
 	}
 
-	console.log('\n' + TARGETS.length + ' icons generated.\n');
+	console.log('\nfavicon.ico (root, for /favicon.ico requests)');
+	const icoEntries = [];
+	for (const size of ICO_SIZES) {
+		const png = await render(svg, size);
+		icoEntries.push({ size, png });
+		console.log('  + ' + (size + 'x' + size).padEnd(9) + (png.length / 1024).toFixed(1) + ' KB');
+	}
+	const ico = buildIco(icoEntries);
+	fs.writeFileSync(ICO_FILE, ico);
+	console.log('  → favicon.ico' + ' '.repeat(17) + (ico.length / 1024).toFixed(1) + ' KB  ('
+		+ ICO_SIZES.length + ' sizes)');
+
+	console.log('\n' + (TARGETS.length + 1) + ' files generated.\n');
 }
 
 main().catch(err => {

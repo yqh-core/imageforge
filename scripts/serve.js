@@ -145,6 +145,13 @@ const server = http.createServer((req, res) => {
 	const finalAbs = path.join(SERVE_ROOT, rel);
 
 	if (!fs.existsSync(finalAbs) || fs.statSync(finalAbs).isDirectory()) {
+		// 有 404.html 就按生产行为返回它（内容 + 404 状态码），
+		// 没有的话才退回这段提示文本 —— 这样"本地跑 verify"量到的状态码
+		// 和 Cloudflare Pages 上真的一致。
+		const notFoundPage = path.join(SERVE_ROOT, '404.html');
+		if (fs.existsSync(notFoundPage)) {
+			return send(res, 404, { 'Content-Type': MIME['.html'] }, fs.readFileSync(notFoundPage));
+		}
 		return send(res, 404, { 'Content-Type': 'text/html; charset=utf-8' },
 			'<h1>404</h1><p>' + rel + ' not found. Did you run <code>npm run build</code>?</p>');
 	}

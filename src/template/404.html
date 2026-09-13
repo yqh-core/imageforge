@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html dir="{{BRAND_DIR}}" lang="{{BRAND_LOCALE}}">
+
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<meta name="robots" content="noindex, follow" />
+
+	<title>404 - Page not found - {{BRAND_NAME}}</title>
+	<meta name="description" content="The page you were looking for does not exist on {{BRAND_NAME}}." />
+
+	<link rel="icon" href="{{BRAND_SITE}}/favicon.ico" sizes="any" />
+	<link rel="icon" type="image/svg+xml" href="{{BRAND_SITE}}/images/favicon.svg" />
+	<link rel="canonical" href="{{BRAND_SITE}}/" />
+
+	<!--
+		内联样式而不是内联脚本：本页的 CSP 见 deploy/cloudflare/_headers，
+		style-src 放开了 'unsafe-inline'，script-src 没有 —— 所以这里只能有 <style>，
+		不能出现 <script> 或 on* 属性，否则会被 CSP 拦掉。
+		样式必须内联：这个页面可能在任意路径下被返回（/foo/bar/baz），
+		相对路径的 .css 会解析到错误的位置，索性不引用外部样式表。
+	-->
+	<style>
+		:root { color-scheme: light dark; }
+
+		* { box-sizing: border-box; }
+
+		body {
+			margin: 0;
+			min-height: 100vh;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			padding: 24px;
+			background: #22282a;
+			color: #e8ecee;
+			font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+		}
+
+		.card {
+			max-width: 34rem;
+			width: 100%;
+			padding: 40px 36px;
+			border: 1px solid #3a4245;
+			border-radius: 10px;
+			background: #2b3234;
+			text-align: center;
+		}
+
+		/*
+			images/logo.svg 是纯黑单色（深色主题统一靠 filter 反白，
+			彩色版本另存为 images/logo-color.svg）。这里背景是深色，
+			所以必须反白，否则 logo 会整个看不见。
+		*/
+		img { width: 64px; height: 64px; margin-bottom: 20px; filter: invert(1); }
+
+		h1 {
+			margin: 0 0 4px;
+			font-size: 3rem;
+			line-height: 1;
+			letter-spacing: -0.02em;
+		}
+
+		.subtitle { margin: 0 0 20px; font-size: 1.125rem; font-weight: 600; }
+
+		p { margin: 0 0 20px; color: #a9b4b8; }
+
+		.actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+		a.button {
+			padding: 10px 20px;
+			border-radius: 6px;
+			border: 1px solid {{BRAND_THEME_COLOR}};
+			background: {{BRAND_THEME_COLOR}};
+			color: #fff;
+			font-weight: 600;
+			text-decoration: none;
+		}
+
+		a.button.secondary {
+			background: transparent;
+			border-color: #4d565a;
+			color: #cdd6d9;
+		}
+
+		a.button:hover { filter: brightness(1.1); }
+
+		.small { margin: 24px 0 0; font-size: 0.8125rem; color: #7d888c; }
+		.small a { color: #9fb0bd; }
+	</style>
+</head>
+
+<body>
+	<div class="card">
+		<img src="{{BRAND_SITE}}/images/logo.svg" alt="" width="64" height="64" />
+		<h1>404</h1>
+		<p class="subtitle">This page doesn&rsquo;t exist.</p>
+		<p>
+			The link may be outdated, or the address was mistyped.
+			Nothing was lost &mdash; {{BRAND_NAME}} keeps your work in the browser, not on a server.
+		</p>
+		<div class="actions">
+			<a class="button" href="{{BRAND_SITE}}/">Open {{BRAND_NAME}}</a>
+			<a class="button secondary" href="{{BRAND_REPOSITORY}}">Browse the source</a>
+		</div>
+		<p class="small">
+			Think this link should work? <a href="{{BRAND_ISSUES}}">Report it</a>.
+		</p>
+	</div>
+</body>
+
+</html>

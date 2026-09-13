@@ -70,8 +70,24 @@ function kb(bytes) {
 	return (bytes / 1024).toFixed(1) + ' KB';
 }
 
-/** 根目录下要上线的一级条目（白名单） */
-const ROOT_FILES = ['index.html', 'manifest.webmanifest', 'robots.txt', 'sitemap.xml'];
+/**
+ * 根目录下要上线的一级条目（白名单）
+ *
+ * 404.html —— Cloudflare Pages 认它作自定义错误页：存在时，未命中的路径会
+ *             返回 404 状态码 + 这个页面；不存在时，Pages 会把所有未命中路径
+ *             回落成 200 + index.html（软 404，搜索引擎会当成一堆重复页）。
+ * service-worker.js —— PWA 离线缓存，注册入口见 src/js/core/service-worker.js。
+ * favicon.ico —— 地址栏/书签/爬虫会无条件请求 /favicon.ico，缺了就会拿到 HTML。
+ */
+const ROOT_FILES = [
+	'index.html',
+	'404.html',
+	'service-worker.js',
+	'favicon.ico',
+	'manifest.webmanifest',
+	'robots.txt',
+	'sitemap.xml',
+];
 const COPY_DIRS = ['dist', 'images'];
 /** 演示数据，仅 examples/ 引用，不需要上线 */
 const SKIP_FILES = new Set(['images/test-collection.json']);

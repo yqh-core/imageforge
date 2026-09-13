@@ -20,6 +20,7 @@ import Base_layers_class from './core/base-layers.js';
 import Base_tools_class from './core/base-tools.js';
 import Base_state_class from './core/base-state.js';
 import Base_search_class from './core/base-search.js';
+import registerServiceWorker from './core/service-worker.js';
 import File_open_class from './modules/file/open.js';
 import File_save_class from './modules/file/save.js';
 import * as Actions from './actions/index.js';
@@ -54,4 +55,8 @@ window.addEventListener('load', function (e) {
 	// Render all
 	GUI.init();
 	Layers.init();
+
+	// 离线能力（PWA）。放在最后：它只做后台缓存，不能挡住首屏，
+	// 而且注册失败（dev 模式没有 service-worker.js）也必须不影响编辑器。
+	registerServiceWorker();
 }, false);

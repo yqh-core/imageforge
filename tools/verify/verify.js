@@ -78,10 +78,15 @@ function check(name, pass, detail) {
 	console.log((pass ? '  [PASS] ' : '  [FAIL] ') + name + (detail ? '  -> ' + detail : ''));
 }
 
+/**
+ * body 是文本，raw 是原始字节。
+ * 两者都给：多数检查看文本方便，但 favicon.ico 这类二进制文件
+ * 只有原始字节能验（ICO 的文件头是 00 00 01 00，转成 UTF-8 字符串就毁了）。
+ */
 async function http(url) {
 	const res = await fetch(url, { redirect: 'manual' });
-	const body = await res.text().catch(() => '');
-	return { status: res.status, headers: res.headers, body };
+	const raw = Buffer.from(await res.arrayBuffer());
+	return { status: res.status, headers: res.headers, body: raw.toString('utf8'), raw };
 }
 
 async function main() {
@@ -152,6 +157,45 @@ async function main() {
 	const leakedKeys = UPSTREAM_DEMO_KEYS.filter(k => bundleBody.indexOf(k) !== -1);
 	check('no upstream demo API keys in shipped JS', leakedKeys.length === 0,
 		leakedKeys.join(', ') || 'clean');
+
+	// ---------- 404 / 图标 / service worker ----------
+	// 这三个都是"页面能打开也发现不了"的问题：软 404 只在搜索引擎眼里是问题，
+	// 缺失的 favicon.ico 只在服务器日志里是一堆 200 + HTML，
+	// 没有 service worker 则只在断网那一刻暴露。
+	console.log('\n-- error page, icons, offline --');
+
+	const missing = await http(BASE + '/no-such-page-' + Date.now());
+	// 软 404 = 不存在的路径返回 200 + 首页内容。搜索引擎会把这些 URL
+	// 当成和首页内容重复的页面收录，站点越大越脏。
+	check('unknown path -> real 404, not soft 404', missing.status === 404, 'HTTP ' + missing.status);
+	check('404 page is branded', missing.body.indexOf(BRAND.name) !== -1,
+		missing.body.indexOf(BRAND.name) !== -1 ? BRAND.name : '(brand name absent)');
+	check('404 page carries noindex', /noindex/.test(missing.body),
+		/noindex/.test(missing.body) ? 'robots: noindex, follow' : '(missing)');
+
+	const ico = await http(BASE + '/favicon.ico');
+	const icoType = ico.headers.get('content-type') || '';
+	// ICO 文件头：reserved(2)=0 type(2)=1。同时排除"返回了 HTML"这个伪装。
+	const isIco = ico.raw.length > 6 && ico.raw[0] === 0 && ico.raw[1] === 0
+		&& ico.raw[2] === 1 && ico.raw[3] === 0;
+	check('GET /favicon.ico -> 200', ico.status === 200, 'HTTP ' + ico.status);
+	check('favicon.ico is a real icon (not an HTML fallback)', isIco && !/text\/html/.test(icoType),
+		icoType + ', ' + ico.raw.length + ' bytes, magic=' + (isIco ? 'ok' : 'bad'));
+
+	const sw = await http(BASE + '/service-worker.js');
+	const swType = sw.headers.get('content-type') || '';
+	check('GET /service-worker.js -> 200', sw.status === 200, 'HTTP ' + sw.status);
+	check('service-worker.js served as JavaScript', /javascript|ecmascript/.test(swType), swType);
+	// 缓存名带构建指纹，指纹变了缓存就整体换掉 —— 这条保证两者真的同步。
+	// 注意 SW 里写的是 'imageforge-' + VERSION，所以要验的是 VERSION 常量，
+	// 不是拼接后的字面量。
+	check('service worker cache name carries the bundle fingerprint',
+		!!bundleRef && sw.body.indexOf("const VERSION = '" + bundleRef + "'") !== -1,
+		'VERSION = ' + bundleRef);
+	// 给了长缓存，发版后用户可能几十小时拿不到新版本
+	check('service-worker.js is not long-cached',
+		/no-cache|max-age=0/.test(sw.headers.get('cache-control') || ''),
+		sw.headers.get('cache-control'));
 
 	// ---------- 渲染层：Chrome ----------
 	// 本地预览时绕开代理（有些环境把 loopback 也塞进代理，会连不上）；
@@ -476,9 +520,87 @@ async function main() {
 	check('no CSP violations during real interaction', cspList.length === 0,
 		cspList.slice(0, 3).join(' || ') || 'clean');
 
+	// ---------- service worker：装上了没有 ----------
+	// 静态检查只能证明 service-worker.js 这个文件在位，证明不了它真的被注册、
+	// 真的接管了页面。这一段要的就是"接管"这个事实。
+	console.log('\n-- service worker --');
+	// 注册是在 load 之后 setTimeout(0) 发起的（不跟首屏抢带宽），要等它落地
+	await sleep(2500);
+	const swState = JSON.parse(await evaluate(`(async () => {
+		if (!('serviceWorker' in navigator)) return JSON.stringify({ supported: false });
+		const reg = await navigator.serviceWorker.getRegistration();
+		return JSON.stringify({
+			supported: true,
+			registered: !!reg,
+			active: !!(reg && reg.active),
+			controlling: !!navigator.serviceWorker.controller,
+			scope: reg ? reg.scope : null,
+		});
+	})()`));
+	check('service worker registered', !!swState.registered && !!swState.active,
+		'registered=' + swState.registered + ' active=' + swState.active + ' scope=' + swState.scope);
+	check('service worker controls the page', !!swState.controlling,
+		'navigator.serviceWorker.controller=' + swState.controlling);
+
+	const cacheState = JSON.parse(await evaluate(`(async () => {
+		const keys = await caches.keys();
+		if (!keys.length) return JSON.stringify({ keys: [], count: 0 });
+		const cache = await caches.open(keys[0]);
+		const reqs = await cache.keys();
+		return JSON.stringify({ keys: keys, count: reqs.length });
+	})()`));
+	check('precache populated', cacheState.count >= 5,
+		cacheState.count + ' entries in ' + (cacheState.keys || []).join(','));
+
+	// ---------- 离线：SW 存在的唯一理由 ----------
+	// 一个"完全跑在浏览器里"的图片编辑器，装到桌面后断网打不开，
+	// 那 PWA 就只是个图标。这里真的断网再刷新一次。
+	console.log('\n-- offline --');
+	const errorsBeforeOffline = errors.slice();
+	const requestsBeforeOffline = requests.slice();
+
+	await send('Network.emulateNetworkConditions',
+		{ offline: true, latency: 0, downloadThroughput: 0, uploadThroughput: 0 });
+	await send('Page.reload', { ignoreCache: false });
+	await sleep(4000);
+
+	// 轮询而不是死等：离线首屏要靠缓存里的 1.2MB bundle 解析执行，
+	// 快慢取决于机器，等固定秒数会在慢机器上误判成"离线打不开"。
+	let offlineState = { title: '', canvas: false, menu: 0 };
+	for (let i = 0; i < 24; i++) {
+		offlineState = JSON.parse(await evaluate(`(() => {
+			const canvas = document.querySelector('#canvas_minipaint');
+			return JSON.stringify({
+				title: document.title,
+				canvas: !!canvas && canvas.width > 0,
+				menu: document.querySelectorAll('#main_menu a').length,
+			});
+		})()`));
+		if (offlineState.canvas && offlineState.menu > 5) break;
+		await sleep(500);
+	}
+	check('page still boots with the network cut', offlineState.canvas && offlineState.menu > 5,
+		'canvas=' + offlineState.canvas + ' menu items=' + offlineState.menu);
+	check('offline page is the branded app, not a browser error page',
+		offlineState.title.indexOf(BRAND.name) !== -1, offlineState.title);
+	await screenshot('05-offline.png');
+
+	// 断网时 fetch 失败是预期内的（Chrome 会往控制台打 net::ERR_*），
+	// 只有脚本自身的异常才说明离线路径写错了。
+	const offlineErrors = errors.slice(errorsBeforeOffline.length)
+		.filter(e => !/net::ERR|Failed to load resource|ERR_INTERNET_DISCONNECTED/.test(e));
+	check('no JS errors while offline', offlineErrors.length === 0,
+		offlineErrors.slice(0, 3).join(' || ') || 'clean');
+
+	await send('Network.emulateNetworkConditions',
+		{ offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+
 	// ---------- 收尾 ----------
-	check('no console errors / exceptions', errors.length === 0, errors.slice(0, 4).join(' || ') || 'clean');
-	check('no failed network responses (>=400)', requests.length === 0, requests.slice(0, 4).join(' || ') || 'clean');
+	// 用离线之前的快照结算：断网期间的请求失败是测试自己造成的，不算站点问题。
+	check('no console errors / exceptions', errorsBeforeOffline.length === 0,
+		errorsBeforeOffline.slice(0, 4).join(' || ') || 'clean');
+	check('no failed network responses (>=400)', requestsBeforeOffline.length === 0,
+		requestsBeforeOffline.slice(0, 4).join(' || ') || 'clean');
 
 	ws.close();
 	chrome.kill();

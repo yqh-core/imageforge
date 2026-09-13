@@ -11,9 +11,15 @@ dist/bundle.js.LICENSE.txt
 # 必须锚定到仓库根目录：不锚定会连 src/template/ 里的模板源文件一起忽略掉，
 # 导致 clone 出来的仓库没有任何模板、构建不出 index.html。
 /index.html
+/404.html
+/service-worker.js
 /manifest.webmanifest
 /robots.txt
 /sitemap.xml
+
+# 注意：根目录下的 favicon.ico 不是这个规则的对象 —— 它由 npm run icons 从
+# images/favicon.svg 生成，和 images/*.png 一样是**要提交**的产物
+# （sharp 是可选依赖，不能指望每台机器都能重新生成它）。
 
 # deploy artifacts (regenerate with `npm run pack`)
 build/
