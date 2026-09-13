@@ -359,5 +359,19 @@ npm run preview     # http://127.0.0.1:4173/
 该功能调用 Pixabay API，需要外网可达；另外 `src/js/config.js` 里的 `config.pixabay_key`
 是公开写在客户端代码里的示例 key，有配额限制，正式使用建议换成自己的 key。
 
+**干净克隆上构建报 `缺少上线必需的文件: index.html`**
+`.gitignore` 里忽略「构建产物」的模式**必须锚定到仓库根目录**。写成 `index.html` 这种
+不带 `/` 前缀的模式，git 会在**任意层级**匹配，于是连 `src/template/index.html` 这些
+**模板源文件**一起被忽略掉 —— 模板没进版本库 → 干净克隆里没有模板 → 渲染步骤一个文件都产不出
+→ `pack` 阶段报缺 `index.html`。本机开发时因为文件已在磁盘上，完全看不出异常，
+只有干净克隆才会暴露。本项目已改成 `/index.html`、`/manifest.webmanifest`、
+`/robots.txt`、`/sitemap.xml`。
+
+排查方法（任何「本地能构建、CI 不能」的问题都先用这条）：
+
+```bash
+git status --ignored --porcelain | grep '^!!'   # 看还有哪些该提交的文件被忽略了
+```
+
 **复制到剪贴板无效**
 `navigator.clipboard` 只在 HTTPS 或 `localhost` 下可用。
