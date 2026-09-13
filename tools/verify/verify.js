@@ -278,6 +278,53 @@ async function main() {
 
 	await screenshot('home.png');
 
+	// ---------- 降级路径：删掉上游 demo key 后不能"静默失效" ----------
+	// 上游 miniPaint 自带两个公开的 demo key，全世界每一份都在用，随时可能被
+	// 撤销或耗尽配额。已经删掉了，但删掉之后必须有明确提示 —— 否则用户点
+	// "Search Images" 只看到空白，根本不知道是这个部署没配 key。
+	// 这里验证两件事：运行时 key 确实为空；且点开功能会给出可读的说明。
+	console.log('\n-- graceful degradation (upstream demo keys removed) --');
+	const keys = JSON.parse(await evaluate(`JSON.stringify({
+		pixabay: window.AppConfig ? (window.AppConfig.pixabay_key || '') : 'NO_CONFIG',
+		webfonts: window.AppConfig ? (window.AppConfig.google_webfonts_key || '') : 'NO_CONFIG'
+	})`));
+	check('runtime pixabay_key is empty (demo key removed)',
+		keys.pixabay === '' && keys.pixabay !== 'NO_CONFIG', JSON.stringify(keys.pixabay));
+	check('runtime google_webfonts_key is empty (demo key removed)',
+		keys.webfonts === '' && keys.webfonts !== 'NO_CONFIG', JSON.stringify(keys.webfonts));
+
+	const mediaTriggered = await evaluate(`(function(){
+		var btn = document.querySelector('[title="Search Images"]')
+			|| Array.prototype.slice.call(document.querySelectorAll('a,button,div[title]'))
+				.filter(function(el){
+					return /search images/i.test((el.getAttribute && el.getAttribute('title')) || el.textContent || '');
+				})[0];
+		if (!btn) return 'not found';
+		btn.click();
+		return 'clicked';
+	})()`);
+	await sleep(1000);
+	if (mediaTriggered === 'clicked') {
+		const notice = await evaluate(`(function(){
+			var t = document.body.innerText || '';
+			var i = t.toLowerCase().indexOf('not configured');
+			if (i === -1) return 'NO NOTICE; body starts: ' + t.substring(0, 160);
+			return t.substring(Math.max(0, i - 60), i + 160);
+		})()`);
+		check('Search Images shows an explicit "not configured" notice (not silent failure)',
+			/not configured/i.test(notice), notice);
+		await screenshot('search-not-configured.png');
+		await evaluate(`(function(){
+			var pop = document.querySelector('#popups .popup');
+			var c = pop && (pop.querySelector('[data-id="popup_cancel"]')
+				|| pop.querySelector('[data-id="popup_close"]'));
+			if (c) c.click();
+		})()`);
+		await sleep(500);
+	} else {
+		check('Search Images control is reachable', false, mediaTriggered);
+	}
+
 	// ---------- 菜单 Help → About ----------
 	console.log('\n-- menu: Help -> About --');
 	const opened = await evaluate(`(function(){
