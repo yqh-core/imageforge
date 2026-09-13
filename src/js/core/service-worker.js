@@ -52,6 +52,13 @@ export function registerServiceWorker() {
 function handleRegistration(registration) {
 	if (!registration) return;
 
+	// 长开不刷新的标签不会自动检查更新 —— 浏览器只在导航时比对 SW 字节。
+	// 编辑器恰恰是"开着放一整天"的那类页面，所以自己定时问一次。
+	// update() 很轻：只下载 service-worker.js 比对字节，没变化就什么都不发生。
+	setInterval(() => {
+		registration.update().catch(() => { /* 断网时问不到，下个周期再试 */ });
+	}, 60 * 60 * 1000);
+
 	// 老页面里已经有 SW 在管，且现在有个装好的新版在等 —— 直接提示
 	if (registration.waiting && navigator.serviceWorker.controller) {
 		promptToUpdate(registration.waiting);

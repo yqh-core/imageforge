@@ -97,11 +97,19 @@ function matchRule(pattern, reqPath) {
 
 const HEADER_RULES = loadHeaderRules();
 
-/** 按请求路径套用 _headers 规则；模式匹配用的是请求路径，不是落盘文件名 */
+/**
+ * 按请求路径套用 _headers 规则；模式匹配用的是请求路径，不是落盘文件名。
+ *
+ * 多条规则命中同名头时按 Cloudflare 的语义用逗号连接（文档原话："If a header
+ * is applied twice in the _headers file, the values are joined with a comma
+ * separator"），而不是后者覆盖前者 —— 本地行为要和线上完全一致才有验收意义。
+ */
 function applyHeaderRules(headers, reqPath) {
 	for (const rule of HEADER_RULES) {
 		if (!matchRule(rule.pattern, reqPath)) continue;
-		for (const [name, value] of rule.headers) headers[name] = value;
+		for (const [name, value] of rule.headers) {
+			headers[name] = headers[name] ? headers[name] + ', ' + value : value;
+		}
 	}
 	return headers;
 }

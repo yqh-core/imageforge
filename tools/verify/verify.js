@@ -113,6 +113,31 @@ async function main() {
 	check('webmanifest MIME correct',
 		/application\/manifest\+json/.test(mani.headers.get('content-type') || ''),
 		mani.headers.get('content-type'));
+
+	// ---------- manifest：PWA 安装资格 ----------
+	// 判据来自 web.dev 的 install criteria：name/short_name、icons 覆盖
+	// 192 与 512、start_url、display 合法值、HTTPS（HTTPS 由部署平台保证）。
+	// id 与 maskable 是 MDN/W3C 的推荐项，分别稳定应用身份、防 Android 裁切。
+	console.log('\n-- pwa manifest --');
+	let maniBody = {};
+	try { maniBody = JSON.parse(mani.body || '{}'); } catch (e) { /* 下面统一报 */ }
+	const iconList = maniBody.icons || [];
+	const iconSizes = iconList.flatMap(i => String(i.sizes || '').split(' '));
+	check('manifest parses as JSON', maniBody.name !== undefined, maniBody.name || '(unparsable)');
+	check('manifest has an id (stable app identity)', !!maniBody.id, 'id=' + maniBody.id);
+	check('manifest icons cover 192x192 and 512x512',
+		iconSizes.includes('192x192') && iconSizes.includes('512x512'), iconSizes.join(', '));
+	check('manifest declares a maskable icon',
+		iconList.some(i => String(i.purpose || '').split(/\s+/).includes('maskable')));
+	const shots = maniBody.screenshots || [];
+	check('manifest declares screenshots for the install UI',
+		shots.length > 0 && shots.every(s => typeof s.sizes === 'string'),
+		(shots[0] || {}).src);
+	const shot = shots[0];
+	if (shot) {
+		const shotRes = await http(BASE + '/' + String(shot.src).replace(/^\//, ''));
+		check('screenshot asset is reachable', shotRes.status === 200, shot.src + ' -> HTTP ' + shotRes.status);
+	}
 	// _headers 的正确不变量是「规则文件本身不能被当成静态资源读出来」，
 	// 而不是「必须 404」。本地预览服务器会直接 404；但 Cloudflare Pages 上
 	// 未匹配的路径会回落到 index.html（SPA 兜底，HTTP 200），此时 /_headers
