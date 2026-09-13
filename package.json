@@ -27,7 +27,8 @@
     "ship:cloudflare": "node scripts/build.js && node scripts/pack.js --target=cloudflare",
     "icons": "node scripts/gen-icons.js",
     "preview": "node scripts/serve.js",
-    "verify": "node tools/verify/verify.js"
+    "verify": "node tools/verify/verify.js",
+    "probe": "node tools/verify/features.js"
   },
   "repository": {
     "type": "git",
