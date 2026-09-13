@@ -8,10 +8,12 @@ dist/bundle.js.br
 dist/bundle.js.LICENSE.txt
 
 # generated at build time from src/template/ + brand.config.json
-index.html
-manifest.webmanifest
-robots.txt
-sitemap.xml
+# 必须锚定到仓库根目录：不锚定会连 src/template/ 里的模板源文件一起忽略掉，
+# 导致 clone 出来的仓库没有任何模板、构建不出 index.html。
+/index.html
+/manifest.webmanifest
+/robots.txt
+/sitemap.xml
 
 # deploy artifacts (regenerate with `npm run pack`)
 build/

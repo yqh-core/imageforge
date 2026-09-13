@@ -109,13 +109,17 @@ sudo nginx -t && sudo systemctl reload nginx
 
 ### 3.3 托管平台（最省事）
 
-| 平台 | 做法 |
-| --- | --- |
-| **Netlify / Cloudflare Pages / Vercel** | 构建命令 `npm run build`（Cloudflare 用 `npm run ship:cloudflare`），发布目录填 `build` |
-| **GitHub Pages** | 构建后把 `build/` 推到 `gh-pages` 分支；或在 Actions 里跑 `npm run ship` 再 `actions/deploy-pages` |
+| 平台 | 构建命令 | 发布目录 |
+| --- | --- | --- |
+| **Cloudflare Pages**（Git 集成） | `npm run ship:cloudflare` | `build` |
+| **Netlify / Vercel** | `npm run ship` | `build` |
+| **GitHub Pages** | 构建后把 `build/` 推到 `gh-pages` 分支；或在 Actions 里跑 `npm run ship` 再 `actions/deploy-pages` | — |
 
-这些平台会自动做 Brotli/Gzip，所以 `.gz` / `.br` 文件传上去也不会被用到 —— 见下面 3.4，
-用 `--target=cloudflare` 打包会直接把它们去掉。
+统一的规则：**构建命令必须是 `ship` / `ship:cloudflare`，不能是 `build`** ——
+`build` 只在 `dist/` 里产出 bundle 和四个页面文件，不产出 `build/` 这个发布目录。
+
+这些平台会自动做 Brotli/Gzip，所以 `.gz` / `.br` 传上去也不会被用到；
+`--target=cloudflare` 打包会直接把它们去掉（见 3.4）。
 
 > **子路径部署**（例如 `https://example.com/imageforge/`）：
 > 本项目所有资源引用都是**相对路径**，放到子目录可以直接工作。
@@ -137,13 +141,11 @@ sudo nginx -t && sudo systemctl reload nginx
 **但是：千万不要把工程目录整个拖进去。** 工程根目录本机实测 **15,967 个文件**，
 其中 `node_modules/` 一个就占 15,599 个，必然超限失败。要上传的**只有 `build/`**。
 
-#### 部署步骤
+#### 方式 A / B：本地上传（Direct Upload）
 
 ```bash
 npm run ship:cloudflare     # = build + pack --target=cloudflare
 ```
-
-然后二选一：
 
 ```bash
 # 方式 A：控制台拖拽
@@ -157,9 +159,85 @@ npx wrangler pages deploy build
 
 访问地址是 `https://<项目名>.pages.dev`。
 
-> ⚠️ **Direct Upload 项目无法在之后转成 Git 集成项目。** 如果你打算以后从 GitHub
-> 自动部署，请在创建项目时就选 Git 集成（构建命令 `npm run ship:cloudflare`，
-> 构建输出目录 `build`），别先走拖拽。
+> ⚠️ **Direct Upload 项目无法在之后转成 Git 集成项目。** 建项目时就要选对：
+> 想自动部署就直接走下面的方式 C，别先拖拽。
+
+#### 方式 C：Git 集成（推荐 —— 推送即自动部署）
+
+一次性配置，之后 `git push` 自动构建上线，本地不用保留工程。
+
+**1. 先把仓库推上去**（本机没有 GitHub 凭据，这一步需要你在自己的终端执行）：
+
+```bash
+cd D:/work/ImageForge
+git push -u origin main
+```
+
+首次推送会要认证，两种任选：
+
+- **HTTPS + Token**：GitHub → Settings → Developer settings → Personal access tokens →
+  Fine-grained tokens，勾 `Contents: Read and write`；推送时用户名填 GitHub 用户名、密码填 token。
+- **SSH**：配好 key 后把 remote 换成 `git@github.com:yqh-core/imageforge.git`。
+
+仓库可以是**私有**的，Cloudflare 读取私有仓库没有额外限制。
+
+**2. 建项目**：Workers & Pages → Create → Pages → **Connect to Git** → 选 `yqh-core/imageforge`。
+
+**3. 构建配置**，只有这几项：
+
+| 字段 | 填什么 |
+| --- | --- |
+| Framework preset | **None** |
+| Build command | `npm run ship:cloudflare` |
+| Build output directory | `build` |
+| Root directory | 留空（仓库根） |
+
+**4. 环境变量：一个都不需要。** Node 版本由仓库里的 `.nvmrc` 决定，见下面 ①。
+
+**5. 保存并部署。** 之后的分工：
+
+- push 到 `main` → **生产部署** → `https://online-drawing.pages.dev`
+- push 到其它分支或开 PR → **预览部署** → 独立的临时 `*.pages.dev` 地址，不污染生产
+
+#### Git 集成模式下必须知道的五件事
+
+**① Node 版本由 `.nvmrc` 决定，不用在控制台设。**
+仓库里提交了 `.nvmrc`，内容是 `22.16.0` —— 正好是 Cloudflare 当前 v3 构建镜像的默认版本。
+钉住它是防镜像默认版本随 LTS 升级漂移，导致某天构建无缘无故失败。
+（等效写法是设 `NODE_VERSION` 环境变量，二选一；我们选了进版本控制的那种。）
+另注：v3 构建系统**不再**从 `package.json` 的 `engines` 字段推断版本，
+所以 `engines.node` 只对本地开发有意义，Cloudflare 不看它。
+
+> ⚠️ 新项目默认应当落在 v3 构建镜像上，建完项目顺便确认一眼。
+> 若显示 v2，建议切到 v3：v1 镜像将于 **2026-09-15** 被强制迁移到 v3，
+> v2 于 **2027-02-23** 迁移。`.nvmrc` 在三个镜像下都生效，提前切不会影响构建。
+
+**② `build/` 在 `.gitignore` 里 —— 这是对的，别改成提交。**
+Cloudflare 每次构建都重新跑 `npm run ship:cloudflare` 生成 `build/`，
+它取的是构建产物目录，和 git 里有没有这个目录无关。把 `build/` 提交进去只会让仓库越滚越大。
+
+**③ 依赖安装走 `npm ci`。** 仓库里有 `package-lock.json`（lockfileVersion 3），
+Cloudflare 用它做可复现安装。所以 **`package-lock.json` 必须一起提交**，
+以后改依赖记得连它一起 commit，否则版本会漂。
+
+**④ 不要在仓库里放 `wrangler.toml` 来接管配置。**
+Cloudflare 文档说得很直白：Wrangler 配置文件里一旦出现 `pages_build_output_dir`，
+**它就成为配置的唯一来源，仪表盘上相同字段会变成只读**。
+对纯静态站这只有坏处 —— 构建命令本来就只能填在仪表盘上，
+多一个配置文件只是多一个能把配置改坏的地方。要用 wrangler 本地部署（方式 B），
+用命令行参数传目录就够了。
+
+**⑤ 构建耗时与依赖缓存。** 依赖会被 Cloudflare 缓存，首次构建慢、之后快。
+`sharp` 被放进了 `optionalDependencies`（没在 `devDependencies`），正是为这个场景：
+它只用于本地重新生成图标 PNG，构建路径完全不碰它，
+所以哪怕某个平台装不上它的本地二进制，也**不会**连带把部署搞挂。
+
+#### 构建命令为什么是 `npm run ship:cloudflare`，不是 `npm run build`
+
+- `build` 只产出 `dist/bundle.js` 和四个页面文件，**不产出 `build/`**，
+  而「构建输出目录」必须真实存在 —— 填 `npm run build` 会让 Cloudflare 报输出目录不存在。
+- `ship:cloudflare` = `build` + `pack --target=cloudflare`，一步产好 `build/`，
+  并且带上 `_headers`、去掉这个平台用不到的 `.gz` / `.br`。
 
 #### 这个目标改了什么
 
@@ -194,18 +272,30 @@ npx wrangler pages deploy build
 
 ## 4. 上线前检查清单
 
-- [ ] `brand.config.json` 里 `site`、`repository`、`issues`、`email` 的占位值已替换
-- [ ] 改完 brand 配置后重新跑过 `npm run ship`（因为 `index.html` 是构建产物）
-- [ ] `npm run preview` 本地确认页面正常、菜单与"关于"弹窗显示新品牌
-- [ ] 服务器已开启 HTTPS（剪贴板写入与摄像头取图在非安全上下文下会被浏览器禁用）
+通用：
+
+- [x] `brand.config.json` 的 `site` / `repository` / `issues` / `email` 已填真实值
+      （`online-drawing.pages.dev` / `yqh-core/imageforge` / `yqhgry@gmail.com`）
+- [ ] 改完 brand 配置后重新跑过 `npm run ship`（`index.html` 是构建产物，改配置必须重新构建）
+- [ ] `npm run preview` 本地确认页面正常、菜单与"关于"弹窗显示的是新品牌
+- [ ] 已启用 HTTPS（剪贴板写入与摄像头取图在非安全上下文下会被浏览器禁用）
 - [ ] `index.html` 没有被设置长缓存
 - [ ] 如果要用 Google AdSense，需要**自己**新建并上传 `ads.txt`（原项目的已被移除）
 
-走 Cloudflare 的话再确认三条：
+走 **Git 集成**的话再确认（见 3.4 方式 C）：
+
+- [ ] 建项目时选的是 **Connect to Git**（Direct Upload 项目之后**无法**转成 Git 集成）
+- [ ] 构建命令 `npm run ship:cloudflare`、输出目录 `build`、Framework preset `None`
+- [ ] 构建镜像确认是 **v3**（v1 于 2026-09-15、v2 于 2027-02-23 强制迁移到 v3）
+- [ ] 生产分支是 `main`，且确实是你想要的那个分支
+- [ ] 仓库里提交了 `.nvmrc` 和 `package-lock.json`（Node 版本与依赖可复现性都靠它们）
+- [ ] 在干净克隆上跑过 `npm ci && npm run ship:cloudflare` 并通过
+      —— 这一条等价于"Cloudflare 会做的事"，过了就不会在 CI 上翻车
+
+走**本地上传**（Direct Upload）的话确认：
 
 - [ ] 上传的是 **`build/`**（50 个文件），不是工程根目录（15,967 个文件，必然超限）
 - [ ] 用的是 `npm run ship:cloudflare`，所以 `build/_headers` 在位、没有多余的 `.gz` / `.br`
-- [ ] 项目创建方式已想清：Direct Upload 之后**无法**转成 Git 集成项目
 
 ## 5. 缓存失效机制
 

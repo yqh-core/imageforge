@@ -95,6 +95,9 @@ ImageForge/
 ├── manifest.webmanifest     ← 构建产物
 ├── robots.txt / sitemap.xml ← 构建产物
 ├── package.json
+├── package-lock.json        锁定依赖版本，务必一起提交（CI 用 npm ci）
+├── .nvmrc                   Node 版本，Cloudflare 构建镜像按它选版本
+├── .gitattributes           行尾规则；.nvmrc 与 _headers 被钉死为 LF
 ├── webpack.config.js        只负责「源码 → dist/bundle.js」
 ├── src/
 │   ├── template/            页面模板（含 {{BRAND_*}} 占位符）
@@ -113,12 +116,12 @@ ImageForge/
 ├── scripts/
 │   ├── build.js             构建编排：打包 → 渲染 → 预压缩
 │   ├── pack.js              挑出上线文件 → build/ + zip（含资源引用自检）
-│   ├── gen-icons.js         矢量源 → 全尺寸 PNG 图标
+│   ├── gen-icons.js         矢量源 → 全尺寸 PNG 图标（sharp 为可选依赖）
 │   ├── serve.js             部署行为仿真预览服务器
 │   └── lib/                 brand.js / render.js / zip.js
 ├── images/                  静态资源（构建产物直接引用，路径不可改）
 ├── vendor/Hermite-resize/   vendored 依赖，见 vendor/README.md
-├── deploy/                  部署配置：nginx 示例 + 部署说明
+├── deploy/                  nginx.conf + cloudflare/_headers + DEPLOY.md
 ├── tools/translator/        语言包辅助工具
 ├── examples/                嵌入集成示例
 ├── dist/                    bundle.js (+ .gz / .br)
@@ -148,7 +151,28 @@ npm run ship
 > 而 Cloudflare Pages 控制台拖拽上传的上限是 **1,000 个文件**，必然失败。
 > 要上传的永远是 `build/`：按 Cloudflare 目标打包后是 **50 个文件**。
 
-### Cloudflare Pages
+### Cloudflare Pages（Git 集成，推荐）
+
+仓库已经按 Git 集成配好了，一次性设置之后 `git push` 就自动构建上线：
+
+| 字段 | 值 |
+| --- | --- |
+| Framework preset | `None` |
+| Build command | `npm run ship:cloudflare` |
+| Build output directory | `build` |
+| Root directory | 留空（仓库根） |
+| 环境变量 | **一个都不需要** |
+
+Node 版本由仓库里的 `.nvmrc`（`22.16.0`）决定，不用在控制台设。
+
+```bash
+git push -u origin main
+```
+
+之后 push 到 `main` 触发生产部署，其它分支 / PR 触发预览部署。
+完整说明、五个易踩点与排查见 [`deploy/DEPLOY.md`](deploy/DEPLOY.md) 的 3.4 节。
+
+不想走 Git 集成也可以本地上传：
 
 ```bash
 npm run ship:cloudflare
@@ -156,9 +180,10 @@ npm run ship:cloudflare
 # 方式 B：npx wrangler pages deploy build
 ```
 
-这个目标相比默认只做两件事：去掉 `.gz` / `.br`（Cloudflare 边缘自动压缩，传了是浪费），
-并加入 `build/_headers` 接管缓存与安全响应头。详见
-[`deploy/DEPLOY.md`](deploy/DEPLOY.md) 的 3.4 节。
+⚠️ **Direct Upload 项目之后无法转成 Git 集成项目**，要自动部署就一开始选 Connect to Git。
+
+这个打包目标相比默认只做两件事：去掉 `.gz` / `.br`（Cloudflare 边缘自动压缩，传了是浪费），
+并加入 `build/_headers` 接管缓存与安全响应头。
 
 入口是 `index.html`，所以 `https://你的域名/` 直接可用。
 

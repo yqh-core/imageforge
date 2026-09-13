@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html dir="{{BRAND_DIR}}" lang="{{BRAND_LOCALE}}">
+
+<head>
+	<meta charset="utf-8" />
+	<meta http-equiv="x-ua-compatible" content="IE=edge" />
+
+	<title>{{BRAND_NAME}} - {{BRAND_TAGLINE}}</title>
+	<meta name="description" content="{{BRAND_DESCRIPTION}}" />
+	<meta name="keywords" content="{{BRAND_KEYWORDS}}" />
+	<meta name="author" content="{{BRAND_AUTHOR}}" />
+	<meta name="robots" content="index, follow, max-image-preview:large" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5.0, user-scalable=yes" />
+	<meta name="theme-color" content="{{BRAND_THEME_COLOR}}" />
+	<meta name="application-name" content="{{BRAND_NAME}}" />
+	<meta name="apple-mobile-web-app-title" content="{{BRAND_NAME}}" />
+	<meta name="apple-mobile-web-app-capable" content="yes" />
+
+	<link rel="canonical" href="{{BRAND_SITE}}" />
+	<link rel="icon" type="image/svg+xml" href="images/favicon.svg" />
+	<link rel="icon" sizes="192x192" href="images/favicon.png" />
+	<link rel="apple-touch-icon" href="images/manifest/192x192.png" />
+	<link rel="manifest" href="manifest.webmanifest" />
+
+	<!-- Open Graph / Twitter -->
+	<meta property="og:type" content="website" />
+	<meta property="og:site_name" content="{{BRAND_NAME}}" />
+	<meta property="og:title" content="{{BRAND_NAME}} - {{BRAND_TAGLINE}}" />
+	<meta property="og:description" content="{{BRAND_DESCRIPTION}}" />
+	<meta property="og:url" content="{{BRAND_SITE}}" />
+	<meta property="og:image" content="{{BRAND_SITE}}/images/preview.jpg" />
+	<meta name="twitter:card" content="summary_large_image" />
+	<meta name="twitter:title" content="{{BRAND_NAME}} - {{BRAND_TAGLINE}}" />
+	<meta name="twitter:description" content="{{BRAND_DESCRIPTION}}" />
+	<meta name="twitter:image" content="{{BRAND_SITE}}/images/preview.jpg" />
+
+	<meta itemprop="name" content="{{BRAND_NAME}}" />
+	<meta itemprop="description" content="{{BRAND_DESCRIPTION}}" />
+	<meta itemprop="image" content="{{BRAND_SITE}}/images/preview.jpg" />
+
+	<!-- Runtime needs Google's webfont host only when the user picks an optional font -->
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+	<script type="application/ld+json">
+	{
+		"@context": "https://schema.org",
+		"@type": "SoftwareApplication",
+		"name": "{{BRAND_NAME}}",
+		"applicationCategory": "MultimediaApplication",
+		"operatingSystem": "Any (web browser)",
+		"url": "{{BRAND_SITE}}",
+		"description": "{{BRAND_DESCRIPTION}}",
+		"offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+	}
+	</script>
+
+	<!--
+		同步加载：样式表是打进 bundle 的，若改成 async/defer，
+		浏览器会先渲染无样式的 HTML，出现明显闪烁。
+		这里保持同步，代价是首屏稍晚，收益是加载过程完全无视觉跳变。
+	-->
+	<script src="dist/bundle.js?v={{BUILD_HASH}}"></script>
+</head>
+
+<body>
+
+	<div class="wrapper">
+
+		<nav aria-label="Main Menu" class="main_menu" id="main_menu"></nav>
+
+		<div class="submenu">
+			<a class="logo" href="#">{{BRAND_NAME}}</a>
+			<div class="block attributes" id="action_attributes"></div>
+			<button class="undo_button" id="undo_button" type="button">
+				<span class="sr_only">Undo</span>
+			</button>
+		</div>
+
+		<div class="sidebar_left" id="tools_container"></div>
+
+
+		<div class="middle_area" id="middle_area">
+
+			<canvas class="ruler_left" id="ruler_left"></canvas>
+			<canvas class="ruler_top" id="ruler_top"></canvas>
+
+			<div class="main_wrapper" id="main_wrapper">
+				<div class="canvas_wrapper" id="canvas_wrapper">
+					<div id="mouse"></div>
+					<div class="transparent-grid" id="canvas_minipaint_background"></div>
+					<canvas id="canvas_minipaint">
+						<div class="trn error">
+							Your browser does not support canvas or JavaScript is not enabled.
+						</div>
+					</canvas>
+				</div>
+			</div>
+		</div>
+
+		<div class="sidebar_right">
+			<div class="preview block">
+				<h2 class="trn toggle" data-target="toggle_preview">Preview</h2>
+				<div id="toggle_preview"></div>
+			</div>
+
+			<div class="colors block">
+				<h2 class="trn toggle" data-target="toggle_colors">Colors</h2>
+				<div class="content" id="toggle_colors"></div>
+			</div>
+
+			<div class="block" id="info_base">
+				<h2 class="trn toggle toggle-full" data-target="toggle_info">Information</h2>
+				<div class="content" id="toggle_info"></div>
+			</div>
+
+			<div class="details block" id="details_base">
+				<h2 class="trn toggle toggle-full" data-target="toggle_details">Layer details</h2>
+				<div class="content details-content" id="toggle_details"></div>
+			</div>
+
+			<div class="layers block">
+				<h2 class="trn">Layers</h2>
+				<div class="content" id="layers_base"></div>
+			</div>
+		</div>
+	</div>
+	<div class="mobile_menu">
+		<button class="left_mobile_menu" id="left_mobile_menu_button" type="button">
+			<span class="sr_only">Toggle Menu</span>
+		</button>
+		<button class="right_mobile_menu" id="mobile_menu_button" type="button">
+			<span class="sr_only">Toggle Menu</span>
+		</button>
+	</div>
+	<div class="hidden" id="tmp"></div>
+	<div id="popups"></div>
+</body>
+
+</html>

@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Everything runs client-side; nothing here needs to be hidden from crawlers.
+Sitemap: {{BRAND_SITE}}/sitemap.xml
