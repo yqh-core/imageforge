@@ -524,19 +524,25 @@ async function main() {
 	// 静态检查只能证明 service-worker.js 这个文件在位，证明不了它真的被注册、
 	// 真的接管了页面。这一段要的就是"接管"这个事实。
 	console.log('\n-- service worker --');
-	// 注册是在 load 之后 setTimeout(0) 发起的（不跟首屏抢带宽），要等它落地
-	await sleep(2500);
-	const swState = JSON.parse(await evaluate(`(async () => {
-		if (!('serviceWorker' in navigator)) return JSON.stringify({ supported: false });
-		const reg = await navigator.serviceWorker.getRegistration();
-		return JSON.stringify({
-			supported: true,
-			registered: !!reg,
-			active: !!(reg && reg.active),
-			controlling: !!navigator.serviceWorker.controller,
-			scope: reg ? reg.scope : null,
-		});
-	})()`));
+	// 注册是在 load 之后 setTimeout(0) 发起的（不跟首屏抢带宽），要等它落地。
+	// 轮询而不是死等：线上首次访问还要从网络拉完 1.2MB 的 precache，
+	// 快慢取决于网络，固定 sleep 会在慢网络下误判成"没注册"。
+	let swState = { supported: false, registered: false, active: false, controlling: false };
+	for (let i = 0; i < 20; i++) {
+		await sleep(1000);
+		swState = JSON.parse(await evaluate(`(async () => {
+			if (!('serviceWorker' in navigator)) return JSON.stringify({ supported: false });
+			const reg = await navigator.serviceWorker.getRegistration();
+			return JSON.stringify({
+				supported: true,
+				registered: !!reg,
+				active: !!(reg && reg.active),
+				controlling: !!navigator.serviceWorker.controller,
+				scope: reg ? reg.scope : null,
+			});
+		})()`));
+		if (swState.registered && swState.active && swState.controlling) break;
+	}
 	check('service worker registered', !!swState.registered && !!swState.active,
 		'registered=' + swState.registered + ' active=' + swState.active + ' scope=' + swState.scope);
 	check('service worker controls the page', !!swState.controlling,
