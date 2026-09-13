@@ -1,0 +1,44 @@
+# ImageForge - Cloudflare Pages 响应头配置
+#
+# 这个文件必须位于「部署目录」的根，也就是 build/_headers。
+# npm run pack --target=cloudflare 会自动把它放进去，不用手工拷。
+#
+# Cloudflare Pages 会解析这个文件并把它转成实际响应头，
+# 它本身不会被当作静态资源对外提供。
+# 上限：100 条规则，单行 2000 字符；匹配到多条规则时取并集。
+
+# ---------------------------------------------------------------- 安全响应头
+/*
+	X-Content-Type-Options: nosniff
+	Referrer-Policy: strict-origin-when-cross-origin
+	Permissions-Policy: geolocation=(), microphone=(), camera=(self)
+	# 刻意不设 X-Frame-Options / frame-ancestors：
+	# examples/ 里的集成示例需要用 iframe 嵌入本应用。
+
+# ---------------------------------------------------------------- HTML 必须每次回源校验
+# dist/ 的文件名是稳定的（bundle.js），缓存失效靠 index.html 里
+# dist/bundle.js?v=<内容指纹> 这个 URL 变化，而不是靠过期时间。
+# 所以 index.html 一旦被缓存住，用户就会一直加载指向旧 bundle 的旧页面。
+#
+# 同时写 "/" 和 "/index.html" 两条：根路径在 Cloudflare 上会被解析到 index.html，
+# 但规则是按请求路径匹配的，只写一条在不同的解析时机下可能漏掉，两条都写才稳。
+/
+	Cache-Control: public, max-age=0, must-revalidate
+
+/index.html
+	Cache-Control: public, max-age=0, must-revalidate
+
+# PWA 清单同理：改名/改图标后要及时生效
+/manifest.webmanifest
+	Cache-Control: public, max-age=0, must-revalidate
+
+# ---------------------------------------------------------------- 带内容指纹的构建产物
+# URL 上带 ?v=<内容指纹>，内容一变 URL 就变，所以可以永久缓存
+/dist/*
+	Cache-Control: public, max-age=31536000, immutable
+
+# ---------------------------------------------------------------- 图标 / 图片
+# 文件名不含指纹，用中等时长。改了 logo / 图标想立刻生效的话，
+# 要么改文件名，要么等这个 TTL 过去。
+/images/*
+	Cache-Control: public, max-age=2592000

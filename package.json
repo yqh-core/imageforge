@@ -1,0 +1,66 @@
+{
+  "name": "imageforge",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ImageForge - online image editor that runs entirely in the browser.",
+  "author": "ImageForge",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "canvas",
+    "drawing",
+    "paint",
+    "layers",
+    "effects",
+    "image-editor"
+  ],
+  "scripts": {
+    "dev": "webpack --mode development",
+    "serve": "webpack serve --mode development --open",
+    "build": "node scripts/build.js",
+    "build:only": "webpack --mode production",
+    "pack": "node scripts/pack.js",
+    "pack:cloudflare": "node scripts/pack.js --target=cloudflare",
+    "ship": "node scripts/build.js && node scripts/pack.js",
+    "ship:cloudflare": "node scripts/build.js && node scripts/pack.js --target=cloudflare",
+    "icons": "node scripts/gen-icons.js",
+    "preview": "node scripts/serve.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yqh-core/imageforge"
+  },
+  "homepage": "https://github.com/yqh-core/imageforge",
+  "devDependencies": {
+    "@babel/core": "^7.14.5",
+    "@babel/plugin-transform-runtime": "^7.14.5",
+    "@babel/preset-env": "^7.14.5",
+    "babel-loader": "^8.2.2",
+    "css-loader": "^5.2.6",
+    "source-map-loader": "^3.0.0",
+    "style-loader": "^2.0.0",
+    "webpack": "^5.76.0",
+    "webpack-cli": "^4.7.2",
+    "webpack-dev-server": "^4.3.1"
+  },
+  "dependencies": {
+    "@babel/runtime": "^7.14.5",
+    "alertifyjs": "^1.13.1",
+    "blueimp-canvas-to-blob": "^3.28.0",
+    "exif-js": "^2.3.0",
+    "file-saver": "^2.0.5",
+    "fuzzysort": "^1.1.4",
+    "gif.js.optimized": "^1.0.1",
+    "hermite-resize": "file:vendor/Hermite-resize",
+    "jquery": "^3.5.1",
+    "pica": "^7.0.0",
+    "semver-compare": "^1.0.0",
+    "uuid": "^8.3.2",
+    "webfontloader": "^1.6.28"
+  },
+  "optionalDependencies": {
+    "sharp": "^0.35.4"
+  }
+}

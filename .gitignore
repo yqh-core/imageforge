@@ -1,0 +1,39 @@
+# dependencies
+node_modules/
+
+# build output (regenerate with `npm run build`)
+dist/bundle.js
+dist/bundle.js.gz
+dist/bundle.js.br
+dist/bundle.js.LICENSE.txt
+
+# generated at build time from src/template/ + brand.config.json
+index.html
+manifest.webmanifest
+robots.txt
+sitemap.xml
+
+# deploy artifacts (regenerate with `npm run pack`)
+build/
+release/
+
+# local / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.log
+npm-debug.log*
+
+# local preview / verification artifacts
+.verify/
+/*.png
+
+# Cloudflare / Wrangler local state
+.wrangler/
+
+# nothing here should ever hold a secret — the whole app is client-side and
+# the build reads only brand.config.json. Kept as a guard against accidents.
+.env
+.env.*
+!.env.example

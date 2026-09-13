@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="ImageForge">
+	<!--
+		ImageForge 单色标识。
+		用于页面左上角（.logo:after），会跟随主题通过 CSS filter: invert() 变成白色，
+		所以这里必须是纯黑、透明背景的单色图形，不要加渐变或彩色。
+	-->
+	<g fill="#000000">
+		<!-- 山峰：图像语义 -->
+		<path d="M6 48 L23 24 L33 37 L40 28 L58 48 Z" />
+		<!-- 基座：锻造台语义 -->
+		<rect x="6" y="51" width="52" height="4" rx="2" />
+		<!-- 火花：锻造语义 -->
+		<path d="M44 8 C44.9 14.1 46.9 16.1 53 17 C46.9 17.9 44.9 19.9 44 26 C43.1 19.9 41.1 17.9 35 17 C41.1 16.1 43.1 14.1 44 8 Z" />
+	</g>
+</svg>

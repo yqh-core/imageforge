@@ -1,0 +1,18 @@
+# 文本文件在仓库内统一按 LF 存储，检出时按平台自动转换。
+# Cloudflare 的构建容器是 Linux，检出即为 LF。
+* text=auto
+
+# 二进制资源绝不能被行尾转换碰
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.woff binary
+*.woff2 binary
+
+# 下面两个文件的行尾有语义，必须钉死 LF：
+#   .nvmrc                    末尾的 \r 会让版本号解析失败（"22.16.0\r"）
+#   deploy/cloudflare/_headers  CRLF 会让每条响应头的值带上尾随 \r
+.nvmrc                       text eol=lf
+deploy/cloudflare/_headers   text eol=lf
