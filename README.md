@@ -37,6 +37,7 @@ npm run serve        # webpack dev server，改代码自动重载
 | `npm run dev` | 开发构建，产出带 source map 的 bundle |
 | `npm run serve` | 带热重载的开发服务器 |
 | `npm run preview` | 静态预览服务器，默认服务 `build/`，会正确返回 `.gz` / `.br` |
+| `npm run verify` | 用真实 Chrome 打开构建产物做验收（22 项：渲染 / 品牌 / 菜单 / 控制台报错 + 截图） |
 | `npm run icons` | 从 `images/favicon.svg` 重新生成全部 PNG 图标 |
 
 ---
@@ -100,7 +101,8 @@ ImageForge/
 ├── .gitattributes           行尾规则；.nvmrc 与 _headers 被钉死为 LF
 ├── webpack.config.js        只负责「源码 → dist/bundle.js」
 ├── src/
-│   ├── template/            页面模板（含 {{BRAND_*}} 占位符）
+│   ├── template/            页面模板（含 {{BRAND_*}} 占位符）—— 这是源文件，必须提交；
+│   │                        根目录的 index.html 等才是构建产物，已被 .gitignore 忽略
 │   ├── css/                 样式（打进 bundle）
 │   └── js/
 │       ├── brand.js         品牌运行时入口
@@ -123,6 +125,7 @@ ImageForge/
 ├── vendor/Hermite-resize/   vendored 依赖，见 vendor/README.md
 ├── deploy/                  nginx.conf + cloudflare/_headers + DEPLOY.md
 ├── tools/translator/        语言包辅助工具
+├── tools/verify/verify.js   Chrome 无头验收脚本（npm run verify）
 ├── examples/                嵌入集成示例
 ├── dist/                    bundle.js (+ .gz / .br)
 ├── build/                   ← npm run pack 产出，上传这个目录

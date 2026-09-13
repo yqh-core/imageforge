@@ -320,6 +320,7 @@ Cloudflare 文档说得很直白：Wrangler 配置文件里一旦出现 `pages_b
 ```bash
 npm run ship        # 先产出 build/
 npm run preview     # http://127.0.0.1:4173/
+npm run verify      # 另一个终端：用真实 Chrome 打开构建产物做验收
 ```
 
 `npm run preview` **默认服务 `build/`**，也就是你即将上传的那份文件本身 ——
@@ -336,6 +337,25 @@ npm run preview     # http://127.0.0.1:4173/
 - 目录请求是否回落到 `index.html`
 
 用它打开页面正常，基本就等价于上线正常。
+
+### `npm run verify` 做了什么
+
+`preview` 只能靠肉眼，`verify`（`tools/verify/verify.js`）把它变成可重复的验收：
+零第三方依赖，用系统已装的 Chrome + CDP 直接跑，覆盖 22 项检查 ——
+
+- 静态层：首屏 200、`index.html` 不缓存、`?v=` 指纹在位、`dist/bundle.js` 可达、
+  `.webmanifest` 的 MIME、`_headers` 对外是 404
+- 渲染层：标题含品牌名、`<html lang>`、DOM 里没有残留 `{{占位符}}` 或
+  `yourname` / `example.com` / `freeps` 之类的旧品牌串、运行时 `AppConfig.LANG`、
+  画布已挂载且有尺寸、主菜单已渲染
+- 交互层：真的点开 `Help → About`，校验弹窗里的品牌名 / 仓库地址 / 邮箱，
+  以及上游署名（miniPaint + MIT）仍在
+- 全局：控制台零 error / 零未捕获异常、零个 ≥400 的响应
+- 截图落在 `.verify/home.png`、`.verify/about.png`
+
+期望值**从 `brand.config.json` 读**，不是写死的。改了品牌配置跑一遍，
+能立刻看出页面有没有跟上。Chrome 路径可用 `CHROME=` 覆盖，被测地址用 `BASE=` 覆盖
+（也可以指向线上域名，做一次线上验收）。
 
 ## 7. 常见问题
 

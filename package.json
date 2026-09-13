@@ -26,7 +26,8 @@
     "ship": "node scripts/build.js && node scripts/pack.js",
     "ship:cloudflare": "node scripts/build.js && node scripts/pack.js --target=cloudflare",
     "icons": "node scripts/gen-icons.js",
-    "preview": "node scripts/serve.js"
+    "preview": "node scripts/serve.js",
+    "verify": "node tools/verify/verify.js"
   },
   "repository": {
     "type": "git",
