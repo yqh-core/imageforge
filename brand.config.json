@@ -5,7 +5,10 @@
 	"description": "ImageForge is a free online image editor that runs entirely in your browser. Open, retouch, layer, filter and export images without uploading anything to a server.",
 	"shortDescription": "Free browser-based image editor with layers, filters and brushes.",
 	"author": "ImageForge",
-	"email": "yqhgry@gmail.com",
+	"email": {
+		"user": "yqhgry",
+		"domain": "gmail.com"
+	},
 	"site": "https://online-drawing.pages.dev",
 	"repository": "https://github.com/yqh-core/imageforge",
 	"issues": "https://github.com/yqh-core/imageforge/issues",
@@ -28,5 +31,9 @@
 		"url": "https://github.com/viliusle/miniPaint",
 		"license": "MIT",
 		"note": "Built on miniPaint"
+	},
+	"services": {
+		"pixabayKey": "",
+		"googleFontsKey": ""
 	}
 }

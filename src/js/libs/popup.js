@@ -418,6 +418,29 @@ class Dialog_class {
 			});
 		}
 
+		// 字段事件在这里统一绑定，而不是写进 HTML 的 onchange="..." 内联属性。
+		// 内联属性要求 CSP 的 script-src 放开 'unsafe-inline'，而那一放开，
+		// CSP 挡 XSS 的主要价值就没了 —— 任何被注入的 <script> 或事件属性都能执行。
+		// 颜色输入除外：下面 uiColorInput 会把它的 id 换掉并自己绑 change。
+		this.el.querySelectorAll('[id^="pop_data_"]:not([type="color"])').forEach((field) => {
+			field.addEventListener('change', () => {
+				this.onChangeEvent();
+			});
+		});
+
+		// 滑杆额外要拖动过程中的实时预览与数值回显（原先是内联 oninput）
+		this.el.querySelectorAll('input[type="range"][id^="pop_data_"]').forEach((range) => {
+			const output = range.dataset.output
+				? this.el.querySelector('#' + range.dataset.output)
+				: null;
+			range.addEventListener('input', () => {
+				if (output) {
+					output.innerHTML = Math.round(range.value * 100) / 100;
+				}
+				this.preview_handler();
+			});
+		});
+
 		//onload
 		if (this.onload) {
 			var params = this.get_params();
@@ -482,7 +505,7 @@ class Dialog_class {
 				if (parameter.values != undefined) {
 					if (parameter.values.length > 10 || parameter.type == 'select') {
 						//drop down
-						html += '<td colspan="2"><select onchange="POP.onChangeEvent();" id="pop_data_' + parameter.name
+						html += '<td colspan="2"><select id="pop_data_' + parameter.name
 							+ '">';
 						var k = 0;
 						for (var j in parameter.values) {
@@ -516,7 +539,7 @@ class Dialog_class {
 								title = parts[0] + ' - <span class="trn">' + parts[1] + '</span>';
 							}
 
-							html += '<input type="radio" onchange="POP.onChangeEvent();" ' + ch + ' name="'
+							html += '<input type="radio" ' + ch + ' name="'
 								+ parameter.name + '" id="pop_data_' + parameter.name + "_poptmp" + j + '" value="'
 								+ parameter.values[j] + '">';
 							html += '<label class="trn" for="pop_data_' + parameter.name + "_poptmp" + j + '">' + title
@@ -537,25 +560,24 @@ class Dialog_class {
 						step = parameter.step;
 					if (parameter.range != undefined) {
 						//range
+						// data-output 指向显示数值的单元格，事件在下方统一绑定
 						html += '<td><input type="range" name="' + parameter.name + '" id="pop_data_' + parameter.name
 							+ '" value="' + parameter.value + '" min="' + parameter.range[0] + '" max="'
 							+ parameter.range[1] + '" step="' + step
-							+ '" oninput="document.getElementById(\'pv' + i + '\').innerHTML = '
-							+ 'Math.round(this.value*100) / 100;POP.preview_handler();" '
-							+'onchange="POP.onChangeEvent();" /></td>';
+							+ '" data-output="pv' + i + '" /></td>';
 						html += '<td class="range_value" id="pv' + i + '">' + parameter.value + '</td>';
 					}
 					else if (parameter.type == 'color') {
-						//color
+						//color  （事件由下方 uiColorInput 那段绑定）
 						html += '<td><input type="color" id="pop_data_' + parameter.name + '" value="' + parameter.value
-							+ '" onchange="POP.onChangeEvent();" /></td>';
+							+ '" /></td>';
 					}
 					else if (typeof parameter.value == 'boolean') {
 						var checked = '';
 						if (parameter.value === true)
 							checked = 'checked';
 						html += '<td class="checkbox"><input type="checkbox" id="pop_data_' + parameter.name + '" '
-							+ checked + ' onclick="POP.onChangeEvent();" > <label class="trn" for="pop_data_'
+							+ checked + ' > <label class="trn" for="pop_data_'
 							+ parameter.name + '">Toggle</label></td>';
 					}
 					else {
@@ -565,7 +587,7 @@ class Dialog_class {
 						if (parameter.type == 'textarea') {
 							//textarea
 							html += '<td><textarea rows="10" id="pop_data_' + parameter.name
-								+ '" onchange="POP.onChangeEvent();" placeholder="' + parameter.placeholder + '" ' + (parameter.prevent_submission ? 'data-prevent-submission=""' : '' ) + '>'
+								+ '" placeholder="' + parameter.placeholder + '" ' + (parameter.prevent_submission ? 'data-prevent-submission=""' : '' ) + '>'
 								+ parameter.value + '</textarea></td>';
 						}
 						else {
@@ -582,7 +604,7 @@ class Dialog_class {
 							}
 
 							html += '<td colspan="2"><input type="' + input_type + '" id="pop_data_' + parameter.name
-								+ '" onchange="POP.onChangeEvent();" value="' + parameter.value + '" placeholder="'
+								+ '" value="' + parameter.value + '" placeholder="'
 								+ parameter.placeholder + '" ' + (parameter.prevent_submission ? 'data-prevent-submission=""' : '' ) + ' />'+comment_html+'</td>';
 						}
 					}

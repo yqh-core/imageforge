@@ -20,7 +20,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const { ROOT, loadBrand } = require('./lib/brand.js');
+const { ROOT, loadBrand, resolveEmail } = require('./lib/brand.js');
 const { createZip } = require('./lib/zip.js');
 
 const BRAND = loadBrand();
@@ -238,7 +238,7 @@ function main() {
 	check('site', BRAND.site);
 	check('repository', BRAND.repository);
 	check('issues', BRAND.issues);
-	check('email', BRAND.email);
+	check('email', resolveEmail(BRAND));
 
 	if (placeholders.length) {
 		console.log('\n⚠ brand.config.json 里仍是占位值（上线前需要替换）：');

@@ -19,6 +19,26 @@ function loadPackage() {
 }
 
 /**
+ * 邮箱在配置里是拆成两段存的（user + domain），不是笔误。
+ *
+ * 完整邮箱是最容易被爬虫按正则抓走的字符串，而 brand.config.json 会被整个
+ * 打进 bundle.js，写成 "yqhgry@gmail.com" 等于把它同时放进 HTML 和 JS 里。
+ * 拆开之后，静态抓取（grep 源码 / 抓 HTML）匹配不到完整地址，运行时再拼回来，
+ * 对真实用户完全无感。
+ *
+ * 任何需要完整地址的地方都走这个函数，不要各自去拼。
+ */
+function resolveEmail(brand) {
+	const email = brand.email;
+	if (!email) return '';
+	if (typeof email === 'string') return email; // 兼容直接写完整地址的配置
+	const user = email.user || '';
+	const domain = email.domain || '';
+	if (user && domain) return user + '@' + domain;
+	return user || domain || '';
+}
+
+/**
  * 文本方向：config 里显式写了 dir 就用它，否则按 locale 推断。
  * 这样把 locale 改成 ar / he 之类时，页面与 PWA 清单会一起转 RTL，
  * 不需要再去手改模板里的 dir="ltr"。
@@ -47,7 +67,7 @@ function buildTokens(options) {
 		BRAND_DESCRIPTION: brand.description || '',
 		BRAND_SHORT_DESCRIPTION: brand.shortDescription || brand.description || '',
 		BRAND_AUTHOR: brand.author || brand.name,
-		BRAND_EMAIL: brand.email || '',
+		BRAND_EMAIL: resolveEmail(brand),
 		BRAND_SITE: String(brand.site || '').replace(/\/+$/, ''),
 		BRAND_REPOSITORY: brand.repository || '',
 		BRAND_ISSUES: brand.issues || (brand.repository ? brand.repository + '/issues' : ''),
@@ -64,4 +84,4 @@ function buildTokens(options) {
 	};
 }
 
-module.exports = { ROOT, loadBrand, loadPackage, buildTokens, resolveDir };
+module.exports = { ROOT, loadBrand, loadPackage, buildTokens, resolveDir, resolveEmail };

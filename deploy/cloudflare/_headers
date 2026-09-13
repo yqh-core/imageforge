@@ -6,14 +6,45 @@
 # Cloudflare Pages 会解析这个文件并把它转成实际响应头，
 # 它本身不会被当作静态资源对外提供。
 # 上限：100 条规则，单行 2000 字符；匹配到多条规则时取并集。
+#
+# 本地预览（npm run preview）也会读这个文件并套用同样的头，
+# 所以 npm run verify 量到的行为就是线上的行为，不是"本地特供"。
 
 # ---------------------------------------------------------------- 安全响应头
 /*
 	X-Content-Type-Options: nosniff
 	Referrer-Policy: strict-origin-when-cross-origin
 	Permissions-Policy: geolocation=(), microphone=(), camera=(self)
-	# 刻意不设 X-Frame-Options / frame-ancestors：
-	# examples/ 里的集成示例需要用 iframe 嵌入本应用。
+
+	# 强制浏览器此后只用 HTTPS 访问本站（含子域），省掉明文首跳并防降级。
+	# 注意：一旦浏览器记住这条，站点必须在 HTTPS 上正常可用，否则会被硬锁。
+	# 本项目始终由 Cloudflare 提供 HTTPS，所以是安全的。想回退就改小 max-age。
+	Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+	# 内容安全策略：白名单式，默认拒绝所有非同源资源。
+	#
+	# 这一条是照着实测出来的需要写的，不是抄的模板：
+	#   script-src 'self'          —— 没有内联脚本：页面里的内联事件属性
+	#                                 （onchange=... 等，js/libs/popup.js）和
+	#                                 菜单里的 javascript:void(0) 都已改成
+	#                                 事件监听 + href="#"，所以这里不需要
+	#                                 'unsafe-inline'，也就不给注入的脚本留口子。
+	#   style-src 'self' 'unsafe-inline'
+	#                              —— 样式由 style-loader 在运行时注入 <style>，
+	#                                 且大量元素的 style 属性是 JS 拼的，必须放开。
+	#                                 这一项风险远低于放开 script-src。
+	#   img-src ... blob: data:    —— 画布换出图片用 blob:，图标有内联 data:。
+	#                                 故意不写 http: —— 页面在 HTTPS 下，明文图片
+	#                                 本来就会被浏览器的混合内容规则拦掉。
+	#   connect-src 'self' https:  —— 图片搜索（pixabay）与在线字体目录
+	#                                 （googleapis）都是 HTTPS 接口。
+	#   worker-src 'self' blob:    —— GIF 导出用 blob 构造 Worker。
+	#   object-src 'none' / base-uri / form-action
+	#                              —— 关掉插件、<base> 劫持、表单外发这三条老路子。
+	#
+	# 刻意不写 frame-ancestors（等价于不设 X-Frame-Options）：
+	# examples/ 里的集成示例需要用 iframe 把本应用嵌进去。
+	Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https: blob: data:; font-src 'self' data:; media-src 'self' blob: data:; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'
 
 # ---------------------------------------------------------------- HTML 必须每次回源校验
 # dist/ 的文件名是稳定的（bundle.js），缓存失效靠 index.html 里

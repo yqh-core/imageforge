@@ -20,9 +20,18 @@ config.COLOR = '#008000';
 config.ALPHA = 255;
 config.ZOOM = 1;
 config.SNAP = true;
-config.pixabay_key = '3ca2cd8af3fde33af218bea02-9021417';
+// 第三方服务密钥一律来自 brand.config.json 的 services 段，不在这里硬编码。
+//
+// 为什么必须改：上游 miniPaint 源码里写死了一个公开的 demo key，全世界每一份
+// miniPaint 都在用它。继续沿用有两个问题 —— 它在消耗别人的配额，而且哪天被
+// 撤销或限流，"Search images" 会静默失效（用户只看到搜不出结果，我们收不到任何信号）。
+//
+// 留空 = 该功能未配置，对应工具会显示明确提示，而不是拿空 key 去请求然后失败。
+// 注意：静态站点没有后端，这两个 key 必然会随 bundle 发到浏览器，属于公开信息
+//（请求本身就带在 URL 上），不要当成机密。
+config.pixabay_key = String((brand.services && brand.services.pixabayKey) || '').trim();
 config.safe_search_can_be_disabled = true;
-config.google_webfonts_key = 'AIzaSyAC_Tx8RKkvN235fXCUyi_5XhSaRCzNhMg';
+config.google_webfonts_key = String((brand.services && brand.services.googleFontsKey) || '').trim();
 config.layers = [];
 config.layer = null;
 config.need_render = false;

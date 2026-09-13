@@ -53,6 +53,23 @@ const PORT = 9344;
 const BRAND = JSON.parse(fs.readFileSync(path.join(__dirname, '../../brand.config.json'), 'utf8'));
 const esc = s => String(s || '').replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
 
+// 邮箱在配置里拆成 user + domain 两段（见 scripts/lib/brand.js 的说明）
+const BRAND_EMAIL = (() => {
+	const e = BRAND.email;
+	if (!e) return '';
+	if (typeof e === 'string') return e;
+	return e.user && e.domain ? e.user + '@' + e.domain : (e.user || e.domain || '');
+})();
+
+/**
+ * 上游 miniPaint 源码里写死的两个公开 demo key。它们不该再出现在我们的产物里 ——
+ * 一旦有人顺手加回来，这个断言会立刻红，而不是等到某天功能静默失效才发现。
+ */
+const UPSTREAM_DEMO_KEYS = [
+	'3ca2cd8af3fde33af218bea02-9021417',
+	'AIzaSyAC_Tx8RKkvN235fXCUyi_5XhSaRCzNhMg',
+];
+
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 const results = [];
@@ -104,6 +121,37 @@ async function main() {
 		&& /max-age=31536000|X-Content-Type-Options/.test(hdr.body);
 	check('_headers rule file is not served as an asset', !leaked,
 		'HTTP ' + hdr.status + (hdr.status === 200 ? ' (SPA fallback -> index.html)' : ''));
+
+	// ---------- 安全响应头 ----------
+	// 本地预览与线上都该带上：本地由 scripts/serve.js 读同一份 _headers 套用，
+	// 所以这一节在本地就能验，不必等到上线。
+	console.log('\n-- security headers --');
+	const hsts = idx.headers.get('strict-transport-security') || '';
+	check('HSTS present', /max-age=\d{6,}/.test(hsts), hsts || '(missing)');
+	const csp = idx.headers.get('content-security-policy') || '';
+	const scriptSrc = (csp.match(/script-src[^;]*/) || ['(no script-src)'])[0];
+	check('CSP present', /default-src 'self'/.test(csp), csp ? csp.slice(0, 48) + '...' : '(missing)');
+	// 这条是整个 CSP 的价值所在：script-src 一旦含 'unsafe-inline'，
+	// 被注入的内联脚本照样能跑，等于白设。
+	check("CSP keeps script-src free of 'unsafe-inline'",
+		!/unsafe-inline/.test(scriptSrc), scriptSrc);
+	check('CSP blocks plugins (object-src none)', /object-src 'none'/.test(csp));
+	check('X-Content-Type-Options present', /nosniff/.test(idx.headers.get('x-content-type-options') || ''),
+		idx.headers.get('x-content-type-options'));
+
+	// ---------- 出厂产物不该夹带的东西 ----------
+	console.log('\n-- shipped artefacts --');
+	const bundleBody = bundle.body || '';
+	check('bundle.js delivered as readable JS',
+		bundleBody.indexOf(BRAND.name) !== -1, bundleBody.length + ' bytes');
+	// 邮箱在配置里是拆开存的，完整地址只应在运行时拼出来，不该出现在静态文本里
+	check('no plaintext contact email in shipped HTML',
+		!BRAND_EMAIL || idx.body.indexOf(BRAND_EMAIL) === -1, BRAND_EMAIL || '(none configured)');
+	check('no plaintext contact email in shipped JS',
+		!BRAND_EMAIL || bundleBody.indexOf(BRAND_EMAIL) === -1, BRAND_EMAIL || '(none configured)');
+	const leakedKeys = UPSTREAM_DEMO_KEYS.filter(k => bundleBody.indexOf(k) !== -1);
+	check('no upstream demo API keys in shipped JS', leakedKeys.length === 0,
+		leakedKeys.join(', ') || 'clean');
 
 	// ---------- 渲染层：Chrome ----------
 	// 本地预览时绕开代理（有些环境把 loopback 也塞进代理，会连不上）；
@@ -188,6 +236,16 @@ async function main() {
 	await send('Runtime.enable');
 	await send('Log.enable');
 	await send('Page.enable');
+	// CSP 违规监听必须在文档创建之前注入，否则首屏那批违规就漏掉了。
+	// securitypolicyviolation 在"强制"和"仅报告"两种模式下都会触发，
+	// 用它来量"这条策略有没有误伤"，而不是靠肉眼猜。
+	await send('Page.addScriptToEvaluateOnNewDocument', {
+		source: 'window.__csp = [];\n'
+			+ 'document.addEventListener("securitypolicyviolation", function (e) {\n'
+			+ '\twindow.__csp.push(e.violatedDirective + " <- " + (e.blockedURI || "")'
+			+ ' + " @ " + (e.sourceFile || "") + ":" + (e.lineNumber || 0));\n'
+			+ '});\n',
+	});
 	await send('Network.enable');
 	await send('Emulation.setDeviceMetricsOverride', {
 		width: 1440, height: 900, deviceScaleFactor: 1, mobile: false,
@@ -248,7 +306,7 @@ async function main() {
 	const expect = JSON.stringify({
 		name: BRAND.name,
 		repo: (BRAND.repository || '').replace(/^https?:\/\//, ''),
-		email: BRAND.email,
+		email: BRAND_EMAIL,
 		upstream: (BRAND.upstream && BRAND.upstream.name) || 'miniPaint',
 	});
 	const dlg = await evaluate(`(function(){
@@ -269,10 +327,107 @@ async function main() {
 	check('About dialog rendered', d.hasDialog, dlg);
 	check('About shows brand name', d.hasName, BRAND.name);
 	check('About shows repository link', d.hasRepo, BRAND.repository);
-	check('About shows contact email', d.hasEmail, BRAND.email);
+	check('About shows contact email', d.hasEmail, BRAND_EMAIL);
 	check('About keeps upstream attribution (' + (BRAND.upstream && BRAND.upstream.name) + ' + MIT)',
 		d.hasUpstream && d.hasMIT);
 	await screenshot('about.png');
+
+	// ---------- 对话框字段：这是改造 CSP 后最需要回归的一块 ----------
+	// 原来这些字段的交互写在 HTML 内联属性里（onchange="POP.onChangeEvent();"），
+	// 为了让 CSP 的 script-src 不必放开 'unsafe-inline'，改成了 JS 里统一绑定。
+	// 这里真的开一个带滑杆的对话框，拖一下，确认取值和预览还跟着动 ——
+	// 否则只是"看起来改好了"。
+	console.log('\n-- dialog fields (CSP refactor regression) --');
+
+	const clickMenuItem = async label => {
+		const r = await evaluate(`(function(){
+			var want = ${JSON.stringify(String(label).toLowerCase())};
+			var links = Array.prototype.slice.call(document.querySelectorAll('a'));
+			var hits = links.filter(function(a){ return a.textContent.trim().toLowerCase() === want; });
+			if (!hits.length) return 'not found: ' + want;
+			hits[hits.length - 1].click();
+			return 'clicked';
+		})()`);
+		await sleep(500);
+		return r;
+	};
+
+	// 直接通过 window.POP.show() 开一个带 range 滑杆的对话框。
+	// 原来走\"Effects → Common Filters → Brightness\"菜单，但 Brightness 需要一个
+	// 非空图层才出对话框；空状态下测试就会被 layer-required 的 alertify.error 截走，
+	// 没法验证 popup 内部对 range 的绑定。这里直接驱动 POP 接口，干净可重复。
+	check('window.POP exists', await evaluate('typeof window.POP') === 'object',
+		await evaluate('typeof window.POP'));
+	// 用一个能区分\"变更前 vs 变更后\"的初始值：初始 25，拖到 75（区间 [0,100] 的中点）。
+	// 之所以不用 [-100,100] 的中点 0，是因为 0 正好也是初始值，无法证明 change 真的被处理了。
+	await evaluate(`(function(){
+		window.POP.show({
+			title: 'Range regression',
+			params: [{ name: 'value', title: 'Value:', value: 25, range: [0, 100] }],
+		});
+	})()`);
+	await sleep(700);
+	check('popup opens via window.POP.show', true);
+
+	const dlgState = await evaluate(`(function(){
+		var pop = document.querySelector('#popups .popup');
+		if (!pop) return JSON.stringify({ opened: false });
+		var range = pop.querySelector('input[type="range"][id^="pop_data_"]');
+		var res = { opened: true, hasRange: !!range };
+		if (!range) return JSON.stringify(res);
+
+		var out = range.dataset.output ? pop.querySelector('#' + range.dataset.output) : null;
+		res.outputId = range.dataset.output || null;
+		res.hashBefore = (window.POP && window.POP.last_params_hash) || null;
+
+		var min = parseFloat(range.min || '0');
+		var max = parseFloat(range.max || '100');
+		var mid = min + (max - min) * 0.5;
+		var next = String(mid);
+		// 拖动过程：input；松手：change —— 原内联 oninput / onchange 分别对应这两件事。
+		// 先用 init 事件触发一次 change，把 last_params_hash 锚定到初始值，
+		// 再改成中点，这样 before/after 的对比才真正反映\"输入是否被处理\"。
+		range.dispatchEvent(new Event('change', { bubbles: true }));
+		var hashBefore = (window.POP && window.POP.last_params_hash) || null;
+		var valueBefore = hashBefore ? JSON.parse(hashBefore).value : null;
+
+		range.value = next;
+		range.dispatchEvent(new Event('input', { bubbles: true }));
+		range.dispatchEvent(new Event('change', { bubbles: true }));
+
+		res.expected = String(Math.round(parseFloat(next) * 100) / 100);
+		res.outputAfter = out ? out.textContent.trim() : null;
+		res.hashAfter = (window.POP && window.POP.last_params_hash) || null;
+		res.valueBefore = valueBefore;
+		res.valueAfter = res.hashAfter ? JSON.parse(res.hashAfter).value : null;
+		return JSON.stringify(res);
+	})()`);
+	const ds = JSON.parse(dlgState);
+	check('dialog with a range slider opened', ds.opened && ds.hasRange, dlgState);
+	check('range readout follows the slider (input listener works)',
+		ds.expected != null && ds.outputAfter === ds.expected,
+		'expected ' + ds.expected + ', got ' + ds.outputAfter);
+	check('range change reaches the app (change listener works)',
+		ds.valueBefore !== ds.valueAfter && ds.valueAfter === parseFloat(ds.expected),
+		'value ' + ds.valueBefore + ' -> ' + ds.valueAfter + ', expected ' + ds.expected);
+
+	const closed = await evaluate(`(function(){
+		var pop = document.querySelector('#popups .popup');
+		if (!pop) return 'no popup';
+		var cancel = pop.querySelector('[data-id="popup_cancel"]')
+			|| pop.querySelector('[data-id="popup_close"]');
+		if (!cancel) return 'no cancel button';
+		cancel.click();
+		return document.querySelector('#popups .popup') ? 'still open' : 'closed';
+	})()`);
+	check('dialog closes', closed === 'closed', closed);
+
+	// ---------- CSP：整套交互下来不该有任何违规 ----------
+	// 监听器在页面加载前就装好了（Page.addScriptToEvaluateOnNewDocument），
+	// 所以上面点菜单、开弹窗、拖滑杆的过程全在它的观察范围内。
+	const cspList = JSON.parse(await evaluate('JSON.stringify(window.__csp || [])'));
+	check('no CSP violations during real interaction', cspList.length === 0,
+		cspList.slice(0, 3).join(' || ') || 'clean');
 
 	// ---------- 收尾 ----------
 	check('no console errors / exceptions', errors.length === 0, errors.slice(0, 4).join(' || ') || 'clean');

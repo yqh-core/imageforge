@@ -1934,6 +1934,21 @@ class Google_fonts_search_class {
 				});
 
 				const apiKey = config.google_webfonts_key;
+				if (!apiKey) {
+					// 没有 key 就不要发出请求 —— 那只会得到一句让人摸不着头脑的
+					// 联网错误，而真实原因是这个部署没配置服务密钥。
+					// 内置字体列表不受影响，只是"在线字体目录"这一段用不了。
+					this.fontList = [];
+					this.fontListFiltered = [];
+					this.fontListNode.innerHTML =
+						'<div class="text_muted">'
+						+ 'The online font catalogue is not configured for this deployment.<br /><br />'
+						+ 'It is fetched from the Google Fonts API and needs a key. Add one as '
+						+ '<b>services.googleFontsKey</b> in <b>brand.config.json</b> and rebuild to enable it. '
+						+ 'Fonts already available in the font picker are not affected.'
+						+ '</div>';
+					return;
+				}
 				$.getJSON(`https://www.googleapis.com/webfonts/v1/webfonts?key=${apiKey}&sort=popularity`, (data) => {
 					this.fontList = data.items;
 					this.fontListFiltered = data.items;

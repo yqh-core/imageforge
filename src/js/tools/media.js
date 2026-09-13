@@ -42,8 +42,29 @@ class Media_class extends Base_tools_class {
 		var html = '';
 		var html_paging = '';
 
+		// key 原样取自 brand.config.json 的 services.pixabayKey。
+		// 上游在这里做了一次字符串反转当混淆，已去掉：静态站点没有后端，
+		// key 必然跟着请求发到浏览器，混淆不产生任何安全性，只让配置难懂。
 		var key = config.pixabay_key;
-		key = key.split("").reverse().join("");
+
+		if (!key) {
+			// 没配置就不要拿空 key 去请求 —— 那只会换回一个看不懂的失败。
+			// 明确说清是什么、以及怎么开启。
+			this.POP.show({
+				title: 'Search',
+				params: [{
+					title: '',
+					html: '<div class="text_muted">'
+						+ 'Image search is not configured for this deployment.<br /><br />'
+						+ 'It uses the Pixabay API and needs an API key. Add one as '
+						+ '<b>services.pixabayKey</b> in <b>brand.config.json</b> and rebuild to enable it. '
+						+ 'Free keys are issued at '
+						+ '<a href="https://pixabay.com/api/docs/" target="_blank" rel="noopener">pixabay.com/api/docs</a>.'
+						+ '</div>',
+				}],
+			});
+			return;
+		}
 
 		var safe_search = this.Tools_settings.get_setting('safe_search');
 

@@ -71,7 +71,7 @@ class GUI_menu_class {
 		return `
 			<li>
 				<a id="main_menu_0_${index}" role="menuitem" tabindex="-1" aria-haspopup="true" aria-expanded="false"
-					href="javascript:void(0)" data-level="0" data-index="${ index }"><span class="name trn">${ definition.name }</span></a>
+					href="#" data-level="0" data-index="${ index }"><span class="name trn">${ definition.name }</span></a>
 			</li>
 		`.trim();
 	}
@@ -87,7 +87,7 @@ class GUI_menu_class {
 			return `
 				<li>
 					<a id="main_menu_${ level }_${ index }" role="menuitem" tabindex="-1" aria-haspopup="${ (!!definition.children) + '' }"
-						href="${ definition.href ? definition.href : 'javascript:void(0)' }"
+						href="${ definition.href ? definition.href : '#' }"
 						target="${ definition.href ? '_blank' : '_self' }"
 						data-level="${ level }" data-index="${ index }">
 						<span class="name"><span class="trn">${ definition.name }</span>${ definition.ellipsis ? ' ...' : '' }</span>
@@ -248,6 +248,14 @@ class GUI_menu_class {
 
 		// Any link in the menu is clicked.
 		if (target && target.tagName === 'A') {
+			// 占位链接（没有真实地址的菜单项）原本写的是 javascript:void(0)，
+			// 那种写法在 script-src 不含 'unsafe-inline' 的 CSP 下会被拒绝执行
+			// 并在控制台报错。改成 "#" 之后必须自己拦掉默认跳转，否则页面会被加上 #。
+			const href = target.getAttribute('href');
+			if (!href || href === '#') {
+				event.preventDefault();
+			}
+
 			const hasPopup = target.getAttribute('aria-haspopup') === 'true';			
 			if (hasPopup) {
 				this.toggle_dropdown(target, event.isTrusted);
