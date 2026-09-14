@@ -815,6 +815,26 @@ main().catch(async err => {
  * 只 kill 父进程是不够的 —— 子进程会活下来继续占着调试端口，
  * 下一轮就可能连到它上面，表现为静默挂死。
  */
+/**
+ * 删掉本次的临时 profile。
+ * Windows 上 taskkill 返回 ≠ 文件句柄已释放（崩溃转储进程还会多抓一会儿文件），
+ * 立刻 rmSync 会抛 EBUSY/EPERM —— 原来这里 catch 掉了，于是**每一轮都静默留下几十 MB**。
+ * 实测：连跑一次 probe 就残留一个 18MB 的 cdp-feat-*，一天下来是几百 MB。
+ * 退避重试几次；真删不掉就明确报出来，让启动时的 sweep 在 12h 后接手。
+ */
+async function removeProfile(dir, attempts = 5) {
+	if (!dir) return;
+	for (let i = 0; i < attempts; i++) {
+		try {
+			fs.rmSync(dir, { recursive: true, force: true });
+			return;
+		} catch (e) {
+			await sleep(200 * (i + 1));
+		}
+	}
+	console.warn('>> 警告：临时 profile 删不掉，留给下次启动清理：' + dir);
+}
+
 async function teardown() {
 	try { ws.close(); } catch (e) { /* 已经断了 */ }
 	if (chrome && chrome.pid) {
@@ -827,5 +847,5 @@ async function teardown() {
 			try { chrome.kill('SIGKILL'); } catch (e) { /* 已经退出 */ }
 		}
 	}
-	try { fs.rmSync(profile, { recursive: true, force: true }); } catch (e) { /* 删不掉就算了 */ }
+	await removeProfile(profile);
 }
