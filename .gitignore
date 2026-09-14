@@ -36,6 +36,8 @@ npm-debug.log*
 # local preview / verification artifacts
 .verify/
 .verify-*/
+.probe/
+.probe-*/
 /*.png
 
 # Cloudflare / Wrangler local state
