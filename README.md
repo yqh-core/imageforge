@@ -37,7 +37,7 @@ npm run serve        # webpack dev server，改代码自动重载
 | `npm run dev` | 开发构建，产出带 source map 的 bundle |
 | `npm run serve` | 带热重载的开发服务器 |
 | `npm run preview` | 静态预览服务器，默认服务 `build/`，会正确返回 `.gz` / `.br` |
-| `npm run verify` | 用真实 Chrome 打开构建产物做验收（67 项：渲染 / 品牌 / 安全头 / 404 / PWA / 断网 / 控制台报错 + 截图） |
+| `npm run verify` | 用真实 Chrome 打开构建产物做验收（69 项：渲染 / 品牌 / 安全头 / 404 / PWA / 断网 / 控制台报错 + 截图） |
 | `npm run probe` | 功能探测（16 项：真的画一笔、撤销重做、加图层、导出 PNG、切语言） |
 | `npm run icons` | 从 `images/favicon.svg` 重新生成全部 PNG 图标 |
 

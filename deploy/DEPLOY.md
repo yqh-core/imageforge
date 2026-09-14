@@ -361,7 +361,7 @@ npm run verify      # 另一个终端：用真实 Chrome 打开构建产物做�
 ### `npm run verify` 做了什么
 
 `preview` 只能靠肉眼，`verify`（`tools/verify/verify.js`）把它变成可重复的验收：
-零第三方依赖，用系统已装的 Chrome + CDP 直接跑，覆盖 67 项检查 ——
+零第三方依赖，用系统已装的 Chrome + CDP 直接跑，覆盖 69 项检查 ——
 
 - 静态层：首屏 200、`index.html` 不缓存、`?v=` 指纹在位、`dist/bundle.js` 可达、
   `.webmanifest` 的 MIME、`_headers` 对外是 404

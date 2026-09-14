@@ -78,10 +78,20 @@ function handleRegistration(registration) {
 
 let refreshing = false;
 
-/** 新 SW 接管后刷新一次。加 refreshing 防止 controllerchange 反复触发导致刷新循环。 */
+/**
+ * 只有"用户在更新提示上点了一下"才允许刷新。
+ *
+ * 首次访问时 SW 会在 activate 里 clients.claim()，这同样会推来一次 controllerchange。
+ * 无条件 reload 的话，新访客进站几秒后页面会自己闪一下 —— 对编辑器尤其糟糕：
+ * 那几秒里画的东西直接消失，而用户没做任何会触发刷新的操作。
+ * 这是实测抓到的（自动化跑到一半页面自己重载，把整轮测试挂死了 26 分钟）。
+ */
+let userRequestedUpdate = false;
+
 if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
 	navigator.serviceWorker.addEventListener('controllerchange', () => {
 		if (refreshing) return;
+		if (!userRequestedUpdate) return; // 首次接管：不打扰用户
 		refreshing = true;
 		window.location.reload();
 	});
@@ -92,6 +102,7 @@ function promptToUpdate(worker) {
 	try {
 		// wait = 0 表示不自动消失，等用户点；点了才让它顶上来
 		alertify.notify('A new version is ready. Click to reload.', 'message', 0, () => {
+			userRequestedUpdate = true;
 			worker.postMessage({ type: 'SKIP_WAITING' });
 		});
 	} catch (err) {

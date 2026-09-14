@@ -47,7 +47,15 @@ function resolveChrome() {
 const CHROME = resolveChrome();
 const BASE = process.env.BASE || 'http://127.0.0.1:4173';
 const OUT = process.env.OUT || path.join(process.cwd(), '.verify');
-const PORT = 9344;
+// 端口交给 Chrome 自己挑（从 profile 下的 DevToolsActivePort 读回来）。
+// 写死端口有个很隐蔽的坏法：上一轮没干净退出时残留的 Chrome 还占着它，
+// 这一轮就会连到旧实例上，然后一直等不到回应 —— 表现为脚本静默挂死。
+let PORT = 0;
+
+// 提到模块作用域，收尾逻辑（含崩溃路径）才能碰到
+let chrome = null;
+let ws = null;
+let profile = '';
 
 // 期望值来自品牌配置，改 brand.config.json 后这里自动跟着变
 const BRAND = JSON.parse(fs.readFileSync(path.join(__dirname, '../../brand.config.json'), 'utf8'));
@@ -260,32 +268,52 @@ async function main() {
 		? ['--no-proxy-server', '--proxy-bypass-list=<-loopback>']
 		: (process.env.VERIFY_PROXY ? ['--proxy-server=' + process.env.VERIFY_PROXY] : []);
 
-	const profile = path.join(os.tmpdir(), 'cdp-if-' + Date.now());
-	const chrome = spawn(CHROME, [
+	// 兜底闸门：即使有哪个等待绕过了单次调用超时，也不允许无限期挂着
+	const WATCHDOG_MS = Number(process.env.VERIFY_TIMEOUT || 10 * 60 * 1000);
+	setTimeout(() => {
+		console.error('VERIFY WATCHDOG: exceeded ' + Math.round(WATCHDOG_MS / 60000)
+			+ ' minutes, aborting instead of hanging');
+		process.exit(3);
+	}, WATCHDOG_MS).unref();
+
+	profile = path.join(os.tmpdir(), 'cdp-if-' + Date.now());
+	chrome = spawn(CHROME, [
 		'--headless=new', '--disable-gpu', '--no-sandbox', '--hide-scrollbars',
 		...proxyArgs,
-		'--window-size=1440,900', '--remote-debugging-port=' + PORT,
+		'--window-size=1440,900', '--remote-debugging-port=0',
 		'--user-data-dir=' + profile, 'about:blank',
 	], { stdio: 'ignore' });
 
 	let wsUrl = null;
-	for (let i = 0; i < 80; i++) {
+	for (let i = 0; i < 120; i++) {
 		try {
-			const list = await (await fetch('http://127.0.0.1:' + PORT + '/json/list')).json();
-			const page = list.find(t => t.type === 'page');
-			if (page && page.webSocketDebuggerUrl) { wsUrl = page.webSocketDebuggerUrl; break; }
+			const portFile = path.join(profile, 'DevToolsActivePort');
+			if (fs.existsSync(portFile)) {
+				PORT = Number(fs.readFileSync(portFile, 'utf8').split('\n')[0]) || PORT;
+			}
+			if (PORT) {
+				const list = await (await fetch('http://127.0.0.1:' + PORT + '/json/list')).json();
+				const page = list.find(t => t.type === 'page');
+				if (page && page.webSocketDebuggerUrl) { wsUrl = page.webSocketDebuggerUrl; break; }
+			}
 		} catch (e) { /* 等就绪 */ }
 		await sleep(250);
 	}
-	if (!wsUrl) throw new Error('DevTools endpoint not ready');
+	if (!wsUrl) throw new Error('DevTools endpoint not ready (port ' + PORT + ')');
 
-	const ws = new WebSocket(wsUrl);
+	ws = new WebSocket(wsUrl);
 	await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
 
 	let id = 0;
 	const pending = new Map();
 	const errors = [];
 	const requests = [];
+	// 主框架导航记录：用来抓"页面自己在没人要求的情况下刷新"
+	const frameNavigations = [];
+	// 页面弹过的原生对话框（alert/confirm/beforeunload）
+	const dialogs = [];
+	// 单次 CDP 调用的上限：没有它，任何"页面不回应"都会变成永久挂起
+	const CALL_TIMEOUT = Number(process.env.CDP_TIMEOUT || 30000);
 
 	ws.onmessage = ev => {
 		const msg = JSON.parse(ev.data);
@@ -293,6 +321,13 @@ async function main() {
 			const { resolve, reject } = pending.get(msg.id);
 			pending.delete(msg.id);
 			msg.error ? reject(new Error(JSON.stringify(msg.error))) : resolve(msg.result);
+			return;
+		}
+		// 原生对话框会冻住渲染进程，之后所有 Runtime.evaluate 都不返回。
+		// 必须主动 accept 掉，否则脚本静默挂死。
+		if (msg.method === 'Page.javascriptDialogOpening') {
+			dialogs.push(msg.params.type + ': ' + msg.params.message);
+			send('Page.handleJavaScriptDialog', { accept: true }).catch(() => {});
 			return;
 		}
 		if (msg.method === 'Runtime.exceptionThrown') {
@@ -309,13 +344,26 @@ async function main() {
 			const r = msg.params.response;
 			if (r.status >= 400) requests.push(r.status + ' ' + r.url);
 		}
+		if (msg.method === 'Page.frameNavigated' && !msg.params.frame.parentId) {
+			frameNavigations.push(msg.params.frame.url);
+		}
 	};
 
-	const send = (method, params) => new Promise((resolve, reject) => {
-		const mid = ++id;
-		pending.set(mid, { resolve, reject });
-		ws.send(JSON.stringify({ id: mid, method, params: params || {} }));
-	});
+	// 函数声明而非 const 箭头：onmessage 里要在它被赋值前就能引用
+	function send(method, params) {
+		return new Promise((resolve, reject) => {
+			const mid = ++id;
+			const timer = setTimeout(() => {
+				pending.delete(mid);
+				reject(new Error('CDP call timed out after ' + CALL_TIMEOUT + 'ms: ' + method));
+			}, CALL_TIMEOUT);
+			pending.set(mid, {
+				resolve: v => { clearTimeout(timer); resolve(v); },
+				reject: e => { clearTimeout(timer); reject(e); },
+			});
+			ws.send(JSON.stringify({ id: mid, method, params: params || {} }));
+		});
+	}
 
 	const evaluate = async expression => {
 		const r = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
@@ -602,6 +650,20 @@ async function main() {
 	check('service worker controls the page', !!swState.controlling,
 		'navigator.serviceWorker.controller=' + swState.controlling);
 
+	// 首次访问不该出现"页面自己刷新一次"。SW 在 activate 里 clients.claim() 会推来一次
+	// controllerchange，页面侧若无条件 reload，新访客进站几秒后页面会自己闪一下 ——
+	// 那几秒里画的东西直接消失，而用户什么都没做。
+	// 这个缺陷是实测抓到的：自动化跑到一半页面自己重载，把整轮测试挂死了 26 分钟。
+	//
+	// 基准不能拿"此刻的计数"—— 缺陷发生时那次刷新可能已经发生了，就会把基线一起抬高。
+	// 到这里为止本脚本只主动导航过一次（下面第一次 Page.navigate），所以正确的期望是 1；
+	// 多出来的每一次都是页面自己发起的。
+	await sleep(2500);
+	check('service worker takeover does not reload the page behind the user',
+		frameNavigations.length === 1,
+		frameNavigations.length + ' main-frame navigation(s): ['
+			+ frameNavigations.map(u => u.split('/').pop() || '/').join(', ') + ']');
+
 	const cacheState = JSON.parse(await evaluate(`(async () => {
 		const keys = await caches.keys();
 		if (!keys.length) return JSON.stringify({ keys: [], count: 0 });
@@ -692,8 +754,11 @@ async function main() {
 	check('no failed network responses (>=400)', requestsBeforeOffline.length === 0,
 		requestsBeforeOffline.slice(0, 4).join(' || ') || 'clean');
 
-	ws.close();
-	chrome.kill();
+	// 原生对话框会冻住渲染进程；出现了不一定是错，但应该说一声
+	check('no blocking native dialogs (alert/confirm) opened by the page', dialogs.length === 0,
+		dialogs.slice(0, 3).join(' || ') || 'none');
+
+	await teardown();
 
 	const failed = results.filter(r => !r.pass);
 	console.log('\n================ SUMMARY ================');
@@ -707,8 +772,29 @@ async function main() {
 	console.log('ALL CHECKS PASSED');
 }
 
-main().catch(err => {
+main().catch(async err => {
 	console.error('\nVERIFY CRASHED');
 	console.error(err && err.message ? err.message : err);
+	await teardown();
 	process.exit(1);
 });
+
+/**
+ * 收尾：杀掉整棵 Chrome 进程树并删掉临时 profile。
+ * 只 kill 父进程是不够的 —— 子进程会活下来继续占着调试端口，
+ * 下一轮就可能连到它上面，表现为静默挂死。
+ */
+async function teardown() {
+	try { ws.close(); } catch (e) { /* 已经断了 */ }
+	if (chrome && chrome.pid) {
+		if (process.platform === 'win32') {
+			await new Promise(res => {
+				spawn('taskkill', ['/PID', String(chrome.pid), '/T', '/F'], { stdio: 'ignore' })
+					.on('close', res).on('error', res);
+			});
+		} else {
+			try { chrome.kill('SIGKILL'); } catch (e) { /* 已经退出 */ }
+		}
+	}
+	try { fs.rmSync(profile, { recursive: true, force: true }); } catch (e) { /* 删不掉就算了 */ }
+}

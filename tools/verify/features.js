@@ -38,9 +38,19 @@ function resolveChrome() {
 
 const CHROME = resolveChrome();
 const BASE = process.env.BASE || 'http://127.0.0.1:4173';
-const PORT = 9355;
+
+// 调试端口交给 Chrome 自己挑，从 DevToolsActivePort 读回来。
+// 写死端口会有一个很隐蔽的坏法：上一轮没干净退出时残留的 Chrome 还占着那个端口，
+// 新一轮 fetch /json/list 连上的是**旧实例**，于是拿到一个陌生页面，之后一直等不到回应。
+// 这个坑实测踩过：脚本挂在语言那一段，26 分钟没有任何输出。
+let PORT = 0;
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// 提到模块作用域：收尾逻辑（包括崩溃路径）都要能碰到它们
+let chrome = null;
+let ws = null;
+let profile = '';
 
 if (!CHROME) { console.error('找不到 Chrome'); process.exit(1); }
 
@@ -56,32 +66,52 @@ const note = (ok, name, detail) => {
 		? ['--no-proxy-server', '--proxy-bypass-list=<-loopback>']
 		: (process.env.VERIFY_PROXY ? ['--proxy-server=' + process.env.VERIFY_PROXY] : []);
 
-	const profile = path.join(os.tmpdir(), 'cdp-feat-' + Date.now());
-	const chrome = spawn(CHROME, [
+	// 兜底闸门：即使有哪个等待绕过了单次调用超时，也不允许无限期挂着。
+	// 线上跑一轮（含 1.2MB precache）约 5 分钟，15 分钟足够宽裕。
+	const WATCHDOG_MS = Number(process.env.PROBE_TIMEOUT || 15 * 60 * 1000);
+	setTimeout(() => {
+		console.error('PROBE WATCHDOG: exceeded ' + Math.round(WATCHDOG_MS / 60000)
+			+ ' minutes, aborting instead of hanging');
+		process.exit(3);
+	}, WATCHDOG_MS).unref();
+
+	profile = path.join(os.tmpdir(), 'cdp-feat-' + Date.now());
+	chrome = spawn(CHROME, [
 		'--headless=new', '--disable-gpu', '--no-sandbox', '--hide-scrollbars',
 		...proxyArgs,
-		'--window-size=1440,900', '--remote-debugging-port=' + PORT,
+		'--window-size=1440,900', '--remote-debugging-port=0',
 		'--user-data-dir=' + profile, 'about:blank',
 	], { stdio: 'ignore' });
 
 	let wsUrl = null;
-	for (let i = 0; i < 80; i++) {
+	for (let i = 0; i < 120; i++) {
 		try {
-			const list = await (await fetch('http://127.0.0.1:' + PORT + '/json/list')).json();
-			const page = list.find(t => t.type === 'page');
-			if (page && page.webSocketDebuggerUrl) { wsUrl = page.webSocketDebuggerUrl; break; }
+			const portFile = path.join(profile, 'DevToolsActivePort');
+			if (fs.existsSync(portFile)) {
+				PORT = Number(fs.readFileSync(portFile, 'utf8').split('\n')[0]) || PORT;
+			}
+			if (PORT) {
+				const list = await (await fetch('http://127.0.0.1:' + PORT + '/json/list')).json();
+				const page = list.find(t => t.type === 'page');
+				if (page && page.webSocketDebuggerUrl) { wsUrl = page.webSocketDebuggerUrl; break; }
+			}
 		} catch (e) { /* 等就绪 */ }
 		await sleep(250);
 	}
-	if (!wsUrl) throw new Error('DevTools endpoint not ready');
+	if (!wsUrl) throw new Error('DevTools endpoint not ready (port ' + PORT + ')');
 
-	const ws = new WebSocket(wsUrl);
+	ws = new WebSocket(wsUrl);
 	await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
 
 	let id = 0;
 	const pending = new Map();
 	// 每个阶段单独收集，才能定位是哪一步引入的报错
 	let errors = [];
+	// 页面弹过的原生对话框（alert/confirm/beforeunload）
+	const dialogs = [];
+	// 单次 CDP 调用的上限。没有这个上限，任何"页面不回应"都会变成永久挂起 ——
+	// 一个会挂死的测试脚本比一个会失败的更糟：它既不报错也不结束。
+	const CALL_TIMEOUT = Number(process.env.CDP_TIMEOUT || 30000);
 
 	ws.onmessage = ev => {
 		const msg = JSON.parse(ev.data);
@@ -89,6 +119,13 @@ const note = (ok, name, detail) => {
 			const { resolve, reject } = pending.get(msg.id);
 			pending.delete(msg.id);
 			msg.error ? reject(new Error(JSON.stringify(msg.error))) : resolve(msg.result);
+			return;
+		}
+		// 原生对话框会把渲染进程的 JS 冻住，之后所有 Runtime.evaluate 都不返回。
+		// 必须主动 accept 掉，否则脚本静默挂死（这就是上面那个 26 分钟的现场）。
+		if (msg.method === 'Page.javascriptDialogOpening') {
+			dialogs.push(msg.params.type + ': ' + msg.params.message);
+			send('Page.handleJavaScriptDialog', { accept: true }).catch(() => {});
 			return;
 		}
 		if (msg.method === 'Runtime.exceptionThrown') {
@@ -103,11 +140,21 @@ const note = (ok, name, detail) => {
 		}
 	};
 
-	const send = (method, params) => new Promise((resolve, reject) => {
-		const mid = ++id;
-		pending.set(mid, { resolve, reject });
-		ws.send(JSON.stringify({ id: mid, method, params: params || {} }));
-	});
+	// 用函数声明而不是 const 箭头：onmessage 里要在它被赋值之前就能引用
+	function send(method, params) {
+		return new Promise((resolve, reject) => {
+			const mid = ++id;
+			const timer = setTimeout(() => {
+				pending.delete(mid);
+				reject(new Error('CDP call timed out after ' + CALL_TIMEOUT + 'ms: ' + method));
+			}, CALL_TIMEOUT);
+			pending.set(mid, {
+				resolve: v => { clearTimeout(timer); resolve(v); },
+				reject: e => { clearTimeout(timer); reject(e); },
+			});
+			ws.send(JSON.stringify({ id: mid, method, params: params || {} }));
+		});
+	}
 
 	const evaluate = async expression => {
 		const r = await send('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true });
@@ -470,8 +517,7 @@ const note = (ok, name, detail) => {
 	}
 
 	// ---------------------------------------------------------------- 汇总
-	ws.close();
-	chrome.kill();
+	await teardown();
 
 	const failed = results.filter(r => !r.ok);
 	console.log('\n================ FEATURE PROBE ================');
@@ -480,5 +526,35 @@ const note = (ok, name, detail) => {
 		console.log('FAILED:');
 		failed.forEach(f => console.log('  - ' + f.name + (f.detail ? '  -> ' + f.detail : '')));
 	}
+	// 原生对话框会把渲染进程冻住。出现了不一定是错（beforeunload 就属正常），
+	// 但它在 CDP 下会把 await 挂死，所以至少要说出来。
+	if (dialogs.length) {
+		console.log('\nNOTE: ' + dialogs.length + ' native dialog(s) appeared (auto-accepted to keep going)');
+		dialogs.slice(0, 5).forEach(d => console.log('  - ' + d));
+	}
 	process.exit(failed.length ? 1 : 0);
-})().catch(e => { console.error('PROBE CRASHED\n' + e.message); process.exit(2); });
+})().catch(async e => {
+	console.error('PROBE CRASHED\n' + e.message);
+	await teardown();
+	process.exit(2);
+});
+
+/**
+ * 收尾：杀掉整棵 Chrome 进程树并删掉临时 profile。
+ * 只 kill 那个父进程是不够的 —— 子进程会活下来继续占着调试端口，
+ * 下一轮就会连到它上面（这就是写死端口时那个 26 分钟挂死的成因）。
+ */
+async function teardown() {
+	try { ws.close(); } catch (e) { /* 已经断了 */ }
+	if (chrome && chrome.pid) {
+		if (process.platform === 'win32') {
+			await new Promise(res => {
+				spawn('taskkill', ['/PID', String(chrome.pid), '/T', '/F'], { stdio: 'ignore' })
+					.on('close', res).on('error', res);
+			});
+		} else {
+			try { chrome.kill('SIGKILL'); } catch (e) { /* 已经退出 */ }
+		}
+	}
+	try { fs.rmSync(profile, { recursive: true, force: true }); } catch (e) { /* 删不掉就算了 */ }
+}
