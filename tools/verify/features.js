@@ -60,6 +60,35 @@ const note = (ok, name, detail) => {
 	console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${name}` + (detail ? `  -> ${detail}` : ''));
 };
 
+/**
+ * 扫掉历史遗留的 Chrome 临时 profile。
+ *
+ * teardown 会删自己那一份，但进程被强杀时（Ctrl-C、任务管理器、CI 超时中断）它没机会跑，
+ * 于是 os.tmpdir() 里会慢慢积起几百 MB 的僵尸 profile —— 实测一次就积了 11 个 / 409MB。
+ * 与其靠人记得手动清，不如每次启动时自愈一遍。
+ *
+ * 只动 `cdp-` 前缀、且 STALE_MS 内没被碰过的目录：正在跑的实例会持续往 profile 里写文件
+ * （SingletonLock、DevToolsActivePort…），mtime 一直是新的，所以不会误伤隔壁正在跑的验证。
+ */
+const PROFILE_STALE_MS = 12 * 3600 * 1000;
+function sweepStaleProfiles(maxAgeMs) {
+	const dir = os.tmpdir();
+	let names = [];
+	try { names = fs.readdirSync(dir).filter(n => n.indexOf('cdp-') === 0); } catch (e) { return; }
+	let removed = 0;
+	for (const n of names) {
+		const p = path.join(dir, n);
+		try {
+			const st = fs.statSync(p);
+			if (!st.isDirectory()) continue;
+			if (Date.now() - st.mtimeMs < maxAgeMs) continue;
+			fs.rmSync(p, { recursive: true, force: true });
+			removed++;
+		} catch (e) { /* 正被占用或权限不足：跳过，下次再说 */ }
+	}
+	if (removed) console.log('>> swept ' + removed + ' stale chrome profile(s) from ' + dir);
+}
+
 (async () => {
 	const isLocal = /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:|\/|$)/.test(BASE);
 	const proxyArgs = isLocal
@@ -76,6 +105,8 @@ const note = (ok, name, detail) => {
 	}, WATCHDOG_MS).unref();
 
 	profile = path.join(os.tmpdir(), 'cdp-feat-' + Date.now());
+	// 阈值可用 PROFILE_STALE_MS 覆盖：给个极大值就变成空转，便于验证这段逻辑本身
+	sweepStaleProfiles(Number(process.env.PROFILE_STALE_MS || PROFILE_STALE_MS));
 	chrome = spawn(CHROME, [
 		'--headless=new', '--disable-gpu', '--no-sandbox', '--hide-scrollbars',
 		...proxyArgs,
