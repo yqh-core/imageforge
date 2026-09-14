@@ -244,27 +244,142 @@ const note = (ok, name, detail) => {
 	note(errors.length === 0, 'no console errors during core editing',
 		errors.slice(0, 3).join(' | ') || 'clean');
 
+	// ---------------------------------------------------------------- 撤销 / 重做
+	// 上面只测了 Undo。单向的撤销测不出"撤了拉不回来"—— 那个按钮照样绿。
+	console.log('\n-- undo / redo round trip --');
+	errors = [];
+	const redoClicked = await evaluate(`(function(){
+		// 上一步点了 Undo，Edit 的下拉已经被关掉了，得重新打开
+		var edit = Array.prototype.slice.call(document.querySelectorAll('#main_menu a'))
+			.filter(function(a){ return a.textContent.trim().toLowerCase() === 'edit'; })[0];
+		if (!edit) return 'no edit menu';
+		edit.click();
+		return 'edit opened';
+	})()`);
+	await sleep(500);
+	const redoHit = await evaluate(`(function(){
+		var m = Array.prototype.slice.call(document.querySelectorAll('#main_menu a'))
+			.filter(function(a){ return /^redo/i.test(a.textContent.trim()); })[0];
+		if (!m) return 'no redo entry';
+		m.click();
+		return 'clicked';
+	})()`);
+	await sleep(900);
+	const afterRedo = await evaluate(`(function(){
+		var c = document.getElementById('canvas_minipaint');
+		var d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+		var n = 0; for (var i = 3; i < d.length; i += 4) if (d[i] > 0) n++;
+		return n;
+	})()`);
+	note(typeof afterRedo === 'number' && afterRedo > 0, 'Redo brings the undone stroke back',
+		redoClicked + ' / ' + redoHit + ' -> ' + afterRedo + ' px');
+
+	// ---------------------------------------------------------------- 图层
+	console.log('\n-- layers --');
+	errors = [];
+	const layerBefore = await evaluate(`document.querySelectorAll('#layers > .item').length`);
+	const layerClicked = await evaluate(`(function(){
+		var b = document.getElementById('insert_layer');
+		if (!b) return 'no insert_layer button';
+		b.click();
+		return 'clicked';
+	})()`);
+	await sleep(700);
+	const layerAfter = await evaluate(`document.querySelectorAll('#layers > .item').length`);
+	note(typeof layerAfter === 'number' && layerAfter === layerBefore + 1,
+		'Insert layer adds exactly one row to the layers panel',
+		layerBefore + ' -> ' + layerAfter + ' (' + layerClicked + ')');
+	note(errors.length === 0, 'no console errors adding a layer',
+		errors.slice(0, 2).join(' | ') || 'clean');
+
 	// ---------------------------------------------------------------- 导出
+	// 之前这里只确认"File 菜单里有 Export 这一项" —— 那是存在性检查。
+	// 导出链路（canvas.toBlob → FileSaver → <a download>）任意一环断掉它都是绿的。
+	// 现在真的点完整个导出流程，并把交给下载机制的 blob 取回来验 PNG 文件头和尺寸。
 	console.log('\n-- export --');
 	errors = [];
-	const exportProbe = await evaluate(`(function(){
-		// 不真的触发下载（headless 下会挂起），只确认导出入口存在且可调用
+	await evaluate(`(function(){
+		if (window.__exportBlobs) return 'already hooked';
+		window.__exportBlobs = [];
+		window.__exportNames = [];
+		var origBlob = URL.createObjectURL;
+		URL.createObjectURL = function(o){
+			var url = origBlob.call(URL, o);
+			window.__exportBlobs.push({ url: url, size: (o && o.size) || 0, type: (o && o.type) || '' });
+			return url;
+		};
+		// 文件名要从 <a download> 上读。注意 file-saver 走的是
+		// a.dispatchEvent(new MouseEvent('click'))，不是 a.click() ——
+		// 只挂 click 会一个文件名都抓不到（这不是假设，是实测踩到的）。
+		var origDispatch = HTMLAnchorElement.prototype.dispatchEvent;
+		HTMLAnchorElement.prototype.dispatchEvent = function(ev){
+			if (this.download && ev && ev.type === 'click') window.__exportNames.push(this.download);
+			return origDispatch.apply(this, arguments);
+		};
+		var origClick = HTMLAnchorElement.prototype.click;
+		HTMLAnchorElement.prototype.click = function(){
+			if (this.download) window.__exportNames.push(this.download);
+			return origClick.apply(this, arguments);
+		};
+		return 'hooked';
+	})()`);
+
+	await evaluate(`(function(){
 		var m = Array.prototype.slice.call(document.querySelectorAll('#main_menu a'))
 			.filter(function(a){ return a.textContent.trim().toLowerCase() === 'file'; })[0];
 		if (m) m.click();
-		var names = Array.prototype.slice.call(document.querySelectorAll('#main_menu a'))
-			.map(function(a){ return a.textContent.trim(); });
-		var hit = names.filter(function(n){ return /save|export|download/i.test(n); });
-		return JSON.stringify(hit);
 	})()`);
-	await sleep(400);
+	await sleep(500);
+	const exportOpened = await evaluate(`(function(){
+		var m = Array.prototype.slice.call(document.querySelectorAll('#main_menu a'))
+			.filter(function(a){ return /^export/i.test(a.textContent.trim()); })[0];
+		if (!m) return 'no export entry';
+		m.click();
+		return 'clicked';
+	})()`);
+	await sleep(1400);
+	const exportOk = await evaluate(`(function(){
+		var pop = document.querySelector('#popups .popup');
+		if (!pop) return 'no popup appeared';
+		var ok = pop.querySelector('[data-id="popup_ok"]');
+		if (!ok) return 'no ok button';
+		ok.click();
+		return 'clicked ok';
+	})()`);
+
+	// toBlob 是异步的，固定 sleep 等于赌它在慢机器上也来得及 —— 轮询到落地为止
+	let exported = { blobs: 0 };
+	for (let i = 0; i < 20; i++) {
+		await sleep(400);
+		exported = JSON.parse(await evaluate(`(async function(){
+			var list = window.__exportBlobs || [];
+			if (!list.length) return JSON.stringify({ blobs: 0 });
+			var b = list[list.length - 1];
+			var buf = await (await fetch(b.url)).arrayBuffer();
+			var u8 = new Uint8Array(buf);
+			var png = Array.prototype.join.call(u8.slice(0, 8), ',') === '137,80,78,71,13,10,26,10';
+			var w = 0, h = 0;
+			if (png) { var dv = new DataView(buf); w = dv.getUint32(16); h = dv.getUint32(20); }
+			return JSON.stringify({ blobs: list.length, size: b.size, type: b.type,
+				png: png, w: w, h: h, names: window.__exportNames || [] });
+		})()`));
+		if (exported.blobs && exported.size > 0) break;
+	}
+	note(exported.blobs > 0, 'Export hands a file to the download machinery',
+		exportOpened + ' / ' + exportOk + ' -> ' + exported.blobs + ' blob(s)');
+	note(exported.png === true && exported.size > 1000,
+		'exported PNG has a valid header and a non-trivial size',
+		exported.size + ' bytes  ' + exported.w + 'x' + exported.h + '  ' + exported.type);
+	note((exported.names || []).some(n => /\.png$/i.test(n)),
+		'exported file is named *.png',
+		(exported.names || []).join(', ') || '(no download attribute seen)');
+
+	// 关掉可能还开着的弹窗，别把状态留给下一段
 	await evaluate(`(function(){
 		var pop = document.querySelector('#popups .popup');
 		if (pop) { var c = pop.querySelector('[data-id="popup_cancel"]'); if (c) c.click(); }
 	})()`);
-	const expList = typeof exportProbe === 'string' ? JSON.parse(exportProbe) : [];
-	note(expList.length > 0, 'export / save entries exist in File menu', expList.join(', '));
-	note(errors.length === 0, 'no console errors browsing export', errors.slice(0, 2).join(' | ') || 'clean');
+	note(errors.length === 0, 'no console errors during export', errors.slice(0, 2).join(' | ') || 'clean');
 
 	// ---------------------------------------------------------------- 工具遍历
 	// 放在最后：逐个激活所有工具会改变当前工具、并可能弹出对话框，
@@ -303,6 +418,56 @@ const note = (ok, name, detail) => {
 		badTools.length ? badTools.slice(0, 3).join(' | ') : toolInfo.count + ' tools ok');
 	note(errors.length === 0, 'no console errors while switching tools',
 		errors.slice(0, 3).join(' | ') || 'clean');
+
+	// ---------------------------------------------------------------- 语言切换
+	// locale 这条链是全链路接过的（<html lang> → manifest → 编辑器界面默认语言），
+	// 语言包通过 require.context 打进 bundle，路径错了不会报错、只会静默留在英文。
+	// 放最后：切完界面文案会变，前面的选择器都按英文写的。
+	console.log('\n-- language --');
+	errors = [];
+	const breadcrumb = ['Tools', 'Language', '简体中文'];
+	const langSteps = [];
+	for (const label of breadcrumb) {
+		await sleep(500);
+		langSteps.push(await evaluate(`(function(){
+			var want = ${JSON.stringify(label)};
+			var hit = Array.prototype.slice.call(document.querySelectorAll('#main_menu a'))
+				.filter(function(a){ return a.textContent.trim() === want; })[0];
+			if (!hit) return want + ': not found';
+			hit.click();
+			return want + ': clicked';
+		})()`));
+	}
+	await sleep(1200);
+	const switched = await evaluate(`(function(){
+		var first = document.querySelector('#main_menu a');
+		return JSON.stringify({
+			label: first ? first.textContent.trim() : '',
+			htmlLang: document.documentElement.lang,
+		});
+	})()`);
+	const langState = typeof switched === 'string' ? JSON.parse(switched) : { label: '' };
+	note(langState.label !== '' && langState.label !== breadcrumb[0],
+		'switching to another language re-labels the menu bar',
+		breadcrumb.join(' > ') + '  ->  first menu item now "' + langState.label + '"');
+	note(errors.length === 0, 'no console errors while switching language',
+		errors.slice(0, 2).join(' | ') || 'clean (' + langSteps.join(' / ') + ')');
+	await send('Page.captureScreenshot', { format: 'png' }).then(r => {
+		const out = process.env.OUT || path.join(process.cwd(), '.verify');
+		fs.mkdirSync(out, { recursive: true });
+		fs.writeFileSync(path.join(out, 'feat-language.png'), Buffer.from(r.data, 'base64'));
+	});
+
+	// 切回英文收尾：截图和后续人工排查都在默认语言下更省事
+	for (const label of ['工具', '语言', 'English']) {
+		await sleep(400);
+		await evaluate(`(function(){
+			var want = ${JSON.stringify(label)};
+			var hit = Array.prototype.slice.call(document.querySelectorAll('#main_menu a'))
+				.filter(function(a){ return a.textContent.trim() === want; })[0];
+			if (hit) hit.click();
+		})()`);
+	}
 
 	// ---------------------------------------------------------------- 汇总
 	ws.close();
