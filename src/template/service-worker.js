@@ -36,6 +36,7 @@ const CACHE_NAME = 'imageforge-' + VERSION;
 const PRECACHE = [
 	'./',
 	'./index.html',
+	'./404.html',
 	'./manifest.webmanifest',
 	'./favicon.ico',
 	'./images/favicon.svg',
@@ -118,12 +119,35 @@ self.addEventListener('fetch', (event) => {
 	// 跨域一律放过：opaque 响应不值得缓存，也不该由本站 SW 决定其生死
 	if (url.origin !== self.location.origin) return;
 
-	// 导航请求：优先网络，断网时回落到缓存的 index.html
+	// 导航请求：优先网络，断网时按 URL 精确回落
 	if (request.mode === 'navigate') {
 		event.respondWith(
 			networkFirst(request).catch(async () => {
 				const cache = await caches.open(CACHE_NAME);
-				return (await cache.match('./index.html')) || Response.error();
+
+				// 先按 URL 精确找：'/' 与 '/index.html' 都预缓存过。
+				const exact = await cache.match(request);
+				if (exact) return exact;
+
+				// 应用本身（start_url）离线时必须能打开，回落一次到首页。
+				const path = new URL(request.url).pathname;
+				if (path === '/' || path === '/index.html') {
+					return (await cache.match('./index.html')) || Response.error();
+				}
+
+				// 其余没缓存过的地址不能拿首页顶替 —— 那会在离线状态下
+				// 返回一个 200 的编辑器首页，让人以为这个链接是有效的。
+				// PWA 核心清单要求"绝不能显示浏览器默认的离线页"，
+				// 这里给品牌化 404 页面，并保留 404 语义（不是 200）。
+				const notFound = await cache.match('./404.html');
+				if (notFound) {
+					return new Response(await notFound.text(), {
+						status: 404,
+						statusText: 'Not Found',
+						headers: { 'Content-Type': 'text/html; charset=utf-8' },
+					});
+				}
+				return Response.error();
 			})
 		);
 		return;

@@ -41,10 +41,17 @@
 	#   worker-src 'self' blob:    —— GIF 导出用 blob 构造 Worker。
 	#   object-src 'none' / base-uri / form-action
 	#                              —— 关掉插件、<base> 劫持、表单外发这三条老路子。
+	#   upgrade-insecure-requests   —— MDN 建议它与 HSTS 一起给：HSTS 管"用户直接
+	#                                 访问本站"，它管"页面里残留的 http:// 子资源"。
+	#                                 本站本来就全站 HTTPS，加了没有副作用，
+	#                                 只是给将来某处手滑写下的 http 链接兜底。
 	#
-	# 刻意不写 frame-ancestors（等价于不设 X-Frame-Options）：
+	# 刻意没写 require-trusted-types-for：本应用大量用 innerHTML 拼 UI，
+	# 一开就会整站报错。要开得先重构，收益不抵代价。
+	#
+	# 刻意没写 frame-ancestors（等价于不设 X-Frame-Options）：
 	# examples/ 里的集成示例需要用 iframe 把本应用嵌进去。
-	Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https: blob: data:; font-src 'self' data:; media-src 'self' blob: data:; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'
+	Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https: blob: data:; font-src 'self' data:; media-src 'self' blob: data:; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests
 
 # ---------------------------------------------------------------- HTML 必须每次回源校验
 # dist/ 的文件名是稳定的（bundle.js），缓存失效靠 index.html 里

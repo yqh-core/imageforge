@@ -166,8 +166,37 @@ async function main() {
 	check("CSP keeps script-src free of 'unsafe-inline'",
 		!/unsafe-inline/.test(scriptSrc), scriptSrc);
 	check('CSP blocks plugins (object-src none)', /object-src 'none'/.test(csp));
+	// MDN 建议它与 HSTS 一起给：HSTS 管用户直接访问本站，
+	// 它管页面里残留的 http:// 子资源。
+	check('CSP upgrades insecure requests', /upgrade-insecure-requests/.test(csp));
 	check('X-Content-Type-Options present', /nosniff/.test(idx.headers.get('x-content-type-options') || ''),
 		idx.headers.get('x-content-type-options'));
+
+	// 顺带把"能被搜索到"这件事验掉：PWA 最优清单里的"可在搜索结果中显示"。
+	// 这三样（robots / sitemap / 结构化数据）都在首页之外，平时没人看，
+	// 填错域名不会报错，只会静默指向别人的地址。
+	const robots = await http(BASE + '/robots.txt');
+	const sitemapLine = (robots.body.match(/Sitemap:\s*(\S+)/i) || [])[1];
+	check('robots.txt declares a sitemap', !!sitemapLine, sitemapLine || '(missing)');
+	const sitemap = await http(BASE + '/sitemap.xml');
+	check('sitemap.xml lists the configured site',
+		sitemap.status === 200 && sitemap.body.indexOf(BRAND.site) !== -1,
+		'HTTP ' + sitemap.status + ' ' + BRAND.site);
+
+	let ldOk = false;
+	let ldDetail = '(no application/ld+json block found)';
+	const ldMatch = idx.body.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+	if (ldMatch) {
+		try {
+			const ld = JSON.parse(ldMatch[1]);
+			ldOk = ld['@type'] === 'SoftwareApplication'
+				&& JSON.stringify(ld).indexOf(BRAND.name) !== -1;
+			ldDetail = ld['@type'] + ' / ' + (ld.name || '(no name)');
+		} catch (err) {
+			ldDetail = 'invalid JSON-LD: ' + err.message;
+		}
+	}
+	check('structured data (JSON-LD) parses and is branded', ldOk, ldDetail);
 
 	// ---------- 出厂产物不该夹带的东西 ----------
 	console.log('\n-- shipped artefacts --');
@@ -615,6 +644,28 @@ async function main() {
 	check('offline page is the branded app, not a browser error page',
 		offlineState.title.indexOf(BRAND.name) !== -1, offlineState.title);
 	await screenshot('05-offline.png');
+
+	// PWA 核心清单原话："PWA 绝不应显示浏览器默认的离线页面"。
+	// 离线访问一个没缓存过的地址时，用编辑器首页顶替是最容易犯的错 ——
+	// 用户会拿到 200 的首页，以为这个链接是有效的。这里确认回落的是 404 页面。
+	await send('Page.navigate', { url: BASE + '/offline-missing-' + Date.now() });
+	let off404 = { hasBrand: false, hasCanvas: false, hasCode: false };
+	for (let i = 0; i < 12; i++) {
+		await sleep(500);
+		off404 = JSON.parse(await evaluate(`(() => {
+			const text = document.body ? document.body.innerText : '';
+			return JSON.stringify({
+				hasBrand: text.indexOf(${JSON.stringify(BRAND.name)}) !== -1,
+				hasCanvas: !!document.querySelector('#canvas_minipaint'),
+				hasCode: /404/.test(text),
+			});
+		})()`));
+		if (off404.hasBrand) break;
+	}
+	check('offline unknown URL falls back to the branded 404, not the editor',
+		off404.hasBrand && off404.hasCode && !off404.hasCanvas,
+		'brand=' + off404.hasBrand + ' 404=' + off404.hasCode + ' editor=' + off404.hasCanvas);
+	await screenshot('06-offline-404.png');
 
 	// 断网时 fetch 失败是预期内的（Chrome 会往控制台打 net::ERR_*），
 	// 只有脚本自身的异常才说明离线路径写错了。
