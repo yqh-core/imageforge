@@ -37,7 +37,8 @@ npm run serve        # webpack dev server，改代码自动重载
 | `npm run dev` | 开发构建，产出带 source map 的 bundle |
 | `npm run serve` | 带热重载的开发服务器 |
 | `npm run preview` | 静态预览服务器，默认服务 `build/`，会正确返回 `.gz` / `.br` |
-| `npm run verify` | 用真实 Chrome 打开构建产物做验收（22 项：渲染 / 品牌 / 菜单 / 控制台报错 + 截图） |
+| `npm run verify` | 用真实 Chrome 打开构建产物做验收（67 项：渲染 / 品牌 / 安全头 / 404 / PWA / 断网 / 控制台报错 + 截图） |
+| `npm run probe` | 功能探测（16 项：真的画一笔、撤销重做、加图层、导出 PNG、切语言） |
 | `npm run icons` | 从 `images/favicon.svg` 重新生成全部 PNG 图标 |
 
 ---
@@ -131,7 +132,8 @@ ImageForge/
 ├── deploy/                  nginx.conf + cloudflare/_headers + DEPLOY.md
 ├── tools/translator/        语言包辅助工具
 ├── tools/verify/verify.js   Chrome 无头验收脚本（npm run verify）
-├── tools/verify/features.js 功能探测：画笔真的画得出像素、41 个工具可切换（npm run probe）
+├── tools/verify/features.js 功能探测：真的画一笔并数像素、撤销重做往返、加图层、
+│                             导出 PNG 并验文件头与文件名、切语言（npm run probe）
 ├── examples/                嵌入集成示例
 ├── dist/                    bundle.js (+ .gz / .br)
 ├── build/                   ← npm run pack 产出，上传这个目录
