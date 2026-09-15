@@ -22,7 +22,7 @@
 	padding: 4rem 0 5rem 0;
 	box-shadow: 0 0 0 4000px rgba(0,0,0,0.3), 0 0 20px rgba(0,0,0,0.5);
 	z-index: 100;
-	font-size: 13px;
+	font-size: 15px;
 	overflow: hidden;
 }
 #popups .popup.wide{
@@ -165,7 +165,7 @@
 	width:50px;
 }
 #popups .popup .long_text_value{
-	font-size: 12px;
+	font-size: 14px;
 }
 #popups .popup .preview-item-title{
 	text-align: center;

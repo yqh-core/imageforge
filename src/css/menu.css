@@ -32,7 +32,7 @@
 	list-style: none;
 	padding: 0;
 	margin: 0;
-	height: 30px;
+	height: 34px;
 	padding-left: 10px;
 	background: var(--menu-background-color);
 }
@@ -44,7 +44,7 @@
 .main_menu > ul.menu_bar > li > a {
 	display: flex;
 	align-items: center;
-	font-size: 12px;
+	font-size: 14px;
 	color: var(--menu-text-color);
 	text-decoration: none;
 	padding: 0 10px;
@@ -82,7 +82,7 @@
 	margin: 0;
 	overflow-x: hidden;
 	overflow-y: auto;
-	min-width: 150px;
+	min-width: 168px;
 	box-shadow: 0 0 0 1px var(--menu-dropdown-border-color);
 	background: var(--menu-dropdown-background-color);
 }
@@ -100,10 +100,10 @@
 	flex-direction: row;
 	align-items: center;
 	position: relative;
-	height: 30px;
+	height: 34px;
 	padding: 0 10px;
-	font-size: 12px;
-	line-height: 30px;
+	font-size: 14px;
+	line-height: 34px;
 	text-decoration: none;
 	color: var(--menu-dropdown-text-color);
 }

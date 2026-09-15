@@ -144,10 +144,10 @@ body .sp-preview{
 	position: relative;
 	display: inline-block;
 	height: 30px;
-	width: 110px;
+	width: 130px;
 	padding: 5px 5px 5px 36px;
 	margin: 5px;
-	font-size: 14px;
+	font-size: 15px;
 	text-decoration: none;
 	font-weight: bold;
 	color: #ffffff;
@@ -171,7 +171,7 @@ body .sp-preview{
 	margin-left:22%;
 }
 .about-name{
-	font-size:15px;
+	font-size:17px;
 	font-weight:bold;
 }
 .undo_button {
@@ -394,7 +394,7 @@ IMPORTANT: any new icon should also must be added on /service-worker.js + its ve
 	border-color: var(--border-color);
 	text-decoration:none;
 	color:var(--text-color);
-	font-size:12px;
+	font-size:14px;
 }
 .layer_add{
 	display:inline-block;
@@ -413,8 +413,8 @@ IMPORTANT: any new icon should also must be added on /service-worker.js + its ve
 }
 .layers_list .layer_name{
 	display:block;
-	padding:1px 5px 3px 5px;
-	height:19px;
+	padding:2px 5px 3px 5px;
+	height:22px;
 	width: calc(100% - 44px);
 	text-align: left;
 	overflow:hidden;
@@ -425,7 +425,7 @@ IMPORTANT: any new icon should also must be added on /service-worker.js + its ve
 	border-radius:3px;
 	cursor:pointer;
 	overflow:hidden;
-	font-size: 12px;
+	font-size: 14px;
 	color:var(--text-color);
 	white-space: nowrap;
 }

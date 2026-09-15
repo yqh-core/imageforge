@@ -117,11 +117,11 @@ body.theme-green{
 	background-repeat: no-repeat;
 }
 html {
-	font-size: 10px; /* Base is 10px for easy REM calculation */
+	font-size: 12px; /* Base is 12px: 1rem = 12px, so 1.3rem = 15.6px body text */
 }
 body{
 	margin: 0;
-	padding: 30px 0 0 0;
+	padding: 34px 0 0 0;
 	background-color: #424F5A;
 	background: var(--background);
 	font-size: 1.3rem;
@@ -163,8 +163,8 @@ input[type="text"], select, input[type="number"], textarea{
 	border: 1px solid var(--input-border-color);
 	border-radius: var(--input-border-radius);
 	color: var(--input-text-color);
-	padding: 3px 5px;
-	font-size: 13px;
+	padding: 4px 6px;
+	font-size: 15px;
 }
 input:disabled {
 	opacity: 0.3;
