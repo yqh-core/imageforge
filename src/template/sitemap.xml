@@ -6,4 +6,40 @@
 		<changefreq>weekly</changefreq>
 		<priority>1.0</priority>
 	</url>
+	<url>
+		<loc>{{BRAND_SITE}}/guides</loc>
+		<lastmod>{{BUILD_DATE}}</lastmod>
+		<changefreq>monthly</changefreq>
+		<priority>0.8</priority>
+	</url>
+	<url>
+		<loc>{{BRAND_SITE}}/faq</loc>
+		<lastmod>{{BUILD_DATE}}</lastmod>
+		<changefreq>monthly</changefreq>
+		<priority>0.8</priority>
+	</url>
+	<url>
+		<loc>{{BRAND_SITE}}/about</loc>
+		<lastmod>{{BUILD_DATE}}</lastmod>
+		<changefreq>yearly</changefreq>
+		<priority>0.6</priority>
+	</url>
+	<url>
+		<loc>{{BRAND_SITE}}/contact</loc>
+		<lastmod>{{BUILD_DATE}}</lastmod>
+		<changefreq>yearly</changefreq>
+		<priority>0.5</priority>
+	</url>
+	<url>
+		<loc>{{BRAND_SITE}}/privacy</loc>
+		<lastmod>{{BUILD_DATE}}</lastmod>
+		<changefreq>yearly</changefreq>
+		<priority>0.4</priority>
+	</url>
+	<url>
+		<loc>{{BRAND_SITE}}/terms</loc>
+		<lastmod>{{BUILD_DATE}}</lastmod>
+		<changefreq>yearly</changefreq>
+		<priority>0.4</priority>
+	</url>
 </urlset>
