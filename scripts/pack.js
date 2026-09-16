@@ -87,6 +87,15 @@ const ROOT_FILES = [
 	'manifest.webmanifest',
 	'robots.txt',
 	'sitemap.xml',
+	// v1.0 整改新增的站点级静态页（法律/说明）。
+	// Cloudflare Pages 会把 /about 自动映射到 about.html，
+	// 站内外链接统一用无扩展名写法（见各页内部链接与页脚）。
+	'about.html',
+	'contact.html',
+	'privacy.html',
+	'terms.html',
+	'faq.html',
+	'guides.html',
 ];
 const COPY_DIRS = ['dist', 'images'];
 /** 演示数据，仅 examples/ 引用，不需要上线 */
@@ -130,12 +139,19 @@ function checkReferences(files, errors) {
 
 	for (const ref of new Set(localRefs)) {
 		if (/^https?:|^#|^data:|^mailto:/.test(ref)) continue;
-		const rel = ref.split('?')[0].replace(/^\.\//, '');
+		// 去掉 hash 与查询串，去掉前导斜杠（href="/guides" → "guides"），
+		// 兼容 ./ 相对写法。
+		const rel = ref.split('?')[0].split('#')[0].replace(/^\.\//, '').replace(/^\//, '');
 		if (!rel) continue;
-		if (!fs.existsSync(path.join(ROOT, rel))) {
-			errors.push(rel + '  (被页面引用，但文件不存在 → 上线后是 404)');
-		} else if (!files.includes(rel) && !isSkipped(rel)) {
-			errors.push(rel + '  (被页面引用，但不在打包白名单里 → 会被漏传)');
+		// Cloudflare Pages 会把 /guides 自动映射到 guides.html，
+		// 所以无扩展名的引用只要对应的 .html 存在就视为有效。
+		const asHtml = rel.replace(/\/$/, '') + '.html';
+		const exists = fs.existsSync(path.join(ROOT, rel)) || fs.existsSync(path.join(ROOT, asHtml));
+		const inFiles = files.includes(rel) || files.includes(asHtml);
+		if (!exists) {
+			errors.push(ref + '  (被页面引用，但文件不存在 → 上线后是 404)');
+		} else if (!inFiles && !isSkipped(rel) && !isSkipped(asHtml)) {
+			errors.push(ref + '  (被页面引用，但不在打包白名单里 → 会被漏传)');
 		}
 	}
 }

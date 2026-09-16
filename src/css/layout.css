@@ -6,7 +6,12 @@
 	top: 30px;
 	right: 0;
 	left: 0;
-	bottom: 5px;
+	/*
+		底部留给站点页脚条（.site_footer，19px 高 + 5px 间距）。
+		原来是 5px —— 直接加页脚会盖住画布底部和侧边栏滚动条，
+		所以这里同步抬高，页脚才有地方落。
+	*/
+	bottom: 24px;
 	height: auto;
 	overflow: hidden;
 
@@ -765,5 +770,53 @@ canvas{
 		width: 100%;
 		margin-left: 0;
 		margin-top: 1rem;
+	}
+}
+/*
+	站点页脚条。
+	ImageForge 的主界面是纯应用布局（固定定位的 grid，没有文档流页脚），
+	法律页和文档页因此在这个应用里没有任何入口 —— 爬虫和审核人员都找不到。
+	这里贴底部加一条 19px 的静态链接条，既给它们一个入口，又不占用画布空间。
+
+	放在 layout.css 而不是内联：内联 <style> 在 CSP 下虽然允许（style-src 'unsafe-inline'），
+	但 index.html 的所有样式都走 bundle，拆两处维护迟早会漂。
+*/
+.site_footer {
+	position: fixed;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	z-index: 5;
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: 4px 14px;
+	height: 24px;
+	padding: 0 10px;
+	overflow: hidden;
+	box-sizing: border-box;
+	background: #22282a;
+	border-top: 1px solid #3a4245;
+	font-size: 11px;
+	line-height: 24px;
+	color: #7d888c;
+	white-space: nowrap;
+}
+
+.site_footer a {
+	color: #9fb0bd;
+	text-decoration: none;
+}
+
+.site_footer a:hover {
+	color: #cdd6d9;
+	text-decoration: underline;
+}
+
+/* 窄屏优先保住法律页入口，说明性链接先让位 */
+@media screen and (max-width: 620px) {
+	.site_footer .optional {
+		display: none;
 	}
 }

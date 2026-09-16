@@ -741,7 +741,27 @@ const menuDefinition = [
 		name: 'Help',
 		children: [
 			{
-				name: 'Keyboard Shortcuts',
+				name: 'Guides',
+				href: brand.site + '/guides'
+			},
+		{
+			name: 'FAQ',
+			href: brand.site + '/faq'
+		},
+		{
+			name: 'Contact',
+			href: brand.site + '/contact'
+		},
+		{
+			name: 'Privacy Policy',
+			href: brand.site + '/privacy'
+		},
+		{
+			name: 'Terms of Service',
+			href: brand.site + '/terms'
+		},
+		{
+			name: 'Keyboard Shortcuts',
 				ellipsis: true,
 				target: 'help/shortcuts.shortcuts'
 			},
@@ -751,6 +771,10 @@ const menuDefinition = [
 			},
 			{
 				divider: true
+			},
+			{
+				name: 'About ImageForge',
+				href: brand.site + '/about'
 			},
 			{
 				name: 'About',

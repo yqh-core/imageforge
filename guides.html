@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html dir="ltr" lang="en">
+
+<head>
+	<meta charset="utf-8" />
+	<meta http-equiv="x-ua-compatible" content="IE=edge" />
+
+	<title>How to Use ImageForge - Step-by-Step Guides</title>
+	<meta name="description" content="Four short guides: opening and editing your first image, removing a background, resizing for the web, and working with layers." />
+	<meta name="author" content="ImageForge" />
+	<meta name="robots" content="index, follow, max-image-preview:large" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5.0, user-scalable=yes" />
+	<meta name="theme-color" content="#2f7df6" />
+
+	<link rel="canonical" href="https://online-drawing.pages.dev/guides" />
+	<link rel="icon" href="/favicon.ico" sizes="any" />
+	<link rel="icon" type="image/svg+xml" href="/images/favicon.svg" />
+	<link rel="icon" sizes="192x192" href="/images/favicon.png" />
+
+	<!-- Open Graph / Twitter -->
+	<meta property="og:type" content="article" />
+	<meta property="og:site_name" content="ImageForge" />
+	<meta property="og:title" content="How to Use ImageForge - Step-by-Step Guides" />
+	<meta property="og:description" content="Four short guides: opening and editing your first image, removing a background, resizing for the web, and working with layers." />
+	<meta property="og:url" content="https://online-drawing.pages.dev/guides" />
+	<meta property="og:image" content="https://online-drawing.pages.dev/images/preview.jpg" />
+	<meta name="twitter:card" content="summary_large_image" />
+	<meta name="twitter:title" content="How to Use ImageForge - Step-by-Step Guides" />
+	<meta name="twitter:description" content="Four short guides: opening and editing your first image, removing a background, resizing for the web, and working with layers." />
+	<meta name="twitter:image" content="https://online-drawing.pages.dev/images/preview.jpg" />
+
+	<!--
+		内联样式：_headers 的 CSP 放开 style-src 'unsafe-inline'，
+		但 script-src 没有 —— 这些页面里不能出现任何脚本标签或 on* 事件属性。
+	-->
+	<style>
+		:root { color-scheme: light dark; }
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			background: #f6f7f8;
+			color: #1f2629;
+			font: 16px/1.7 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+		}
+		@media (prefers-color-scheme: dark) {
+			body { background: #1c2123; color: #dfe6e9; }
+			.page { background: #23292b; border-color: #343c3f; }
+			h1, h2, h3 { color: #f2f5f6; }
+			th, td { border-color: #343c3f; }
+			th { background: #2a3134; }
+			code { background: #2a3134; }
+			.note { background: #2a3134; border-left-color: #2f7df6; }
+			.nav { border-color: #343c3f; }
+		}
+		.wrap { max-width: 52rem; margin: 0 auto; padding: 32px 20px 64px; }
+		.nav {
+			display: flex; flex-wrap: wrap; gap: 8px 16px;
+			padding-bottom: 16px; margin-bottom: 28px;
+			border-bottom: 1px solid #dfe4e6; font-size: 0.9375rem;
+		}
+		.nav a { color: #2f7df6; text-decoration: none; }
+		.nav a:hover { text-decoration: underline; }
+		.nav .home { font-weight: 700; color: inherit; }
+		.page {
+			padding: 36px 40px 44px;
+			background: #fff; border: 1px solid #e3e7e9; border-radius: 10px;
+		}
+		h1 { margin: 0 0 6px; font-size: 2rem; line-height: 1.2; letter-spacing: -0.02em; }
+		h2 { margin: 40px 0 12px; font-size: 1.375rem; line-height: 1.3; }
+		h3 { margin: 26px 0 8px; font-size: 1.0625rem; }
+		.updated { margin: 0 0 28px; color: #6b767a; font-size: 0.875rem; }
+		p, li { margin: 0 0 12px; }
+		ul, ol { margin: 0 0 12px; padding-left: 24px; }
+		li { margin-bottom: 6px; }
+		a { color: #2f7df6; }
+		code {
+			padding: 2px 6px; border-radius: 4px; background: #eef1f3;
+			font: 0.875em ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+		}
+		table { width: 100%; margin: 0 0 16px; border-collapse: collapse; font-size: 0.9375rem; }
+		th, td { padding: 8px 12px; border: 1px solid #e3e7e9; text-align: left; vertical-align: top; }
+		.note {
+			margin: 20px 0; padding: 14px 18px;
+			border-left: 3px solid #2f7df6; border-radius: 0 6px 6px 0;
+			background: #f1f5f9;
+		}
+		.note p:last-child { margin-bottom: 0; }
+		footer { margin-top: 32px; padding-top: 20px; border-top: 1px solid #dfe4e6; color: #6b767a; font-size: 0.875rem; }
+		footer a { color: #2f7df6; }
+		@media (max-width: 600px) {
+			.page { padding: 24px 18px 32px; }
+			h1 { font-size: 1.625rem; }
+		}
+</style>
+</head>
+
+<body>
+	<div class="wrap">
+		<nav class="nav" aria-label="Site">
+			<a class="home" href="/">ImageForge</a>
+			<a href="/guides" aria-current="page">Guides</a>
+			<a href="/faq">FAQ</a>
+			<a href="/about">About</a>
+			<a href="/contact">Contact</a>
+			<a href="/privacy">Privacy</a>
+			<a href="/terms">Terms</a>
+		</nav>
+
+		<main class="page">
+
+			<h1>How to Use ImageForge</h1>
+
+			<p>
+				Four short walkthroughs covering the tasks people actually come here for:
+				opening an image, cutting out a background, resizing for the web, and
+				exporting cleanly. Each one takes under two minutes.
+			</p>
+
+			<h2>1. Open an image and make your first edit</h2>
+			<ol>
+				<li>
+					Open the <a href="/">editor</a>.
+				</li>
+				<li>
+					Load a picture in any of three ways:
+					<ul>
+						<li>drag the file onto the canvas &mdash; the fastest option</li>
+						<li><strong>File &rarr; Open</strong> and pick a file</li>
+						<li><code>Ctrl+V</code> / <code>Cmd+V</code> to paste from the clipboard</li>
+					</ul>
+				</li>
+				<li>
+					The image arrives as a layer. You will see it in the <strong>Layers</strong>
+					panel on the right &mdash; that panel is your undo history made visible.
+				</li>
+				<li>
+					Try <strong>Image &rarr; Adjustments &rarr; Brightness/Contrast</strong>
+					and move the sliders.
+				</li>
+				<li>
+					Press <code>Ctrl+Z</code> / <code>Cmd+Z</code> to undo. Unsatisfied with the whole
+					result? <strong>Edit &rarr; Undo</strong> repeatedly, or reload to start clean.
+				</li>
+				<li>
+					<strong>File &rarr; Save As</strong> &rarr; PNG. The file downloads to your device.
+				</li>
+			</ol>
+			<div class="note">
+				<p>
+					<strong>Export early, export often.</strong> Nothing is stored on a server, so a
+					closed tab really does mean lost work.
+				</p>
+			</div>
+
+			<h2>2. Remove a background</h2>
+			<p>Best for logos, product shots and any subject on a flat, solid background.</p>
+			<ol>
+				<li>Open the image.</li>
+				<li>
+					Select the <strong>Magic Wand</strong> tool and click the background.
+					Adjust <strong>Tolerance</strong> in the tool options:
+					a low value selects only near-identical pixels, a high value reaches further
+					into similar colours. Somewhere between 20 and 40 suits most photos.
+				</li>
+				<li>
+					Hold <code>Shift</code> and click to add missed areas to the selection;
+					hold <code>Alt</code> to subtract areas you selected by mistake.
+				</li>
+				<li>
+					If the background is not one flat colour, switch to the <strong>Lasso</strong>
+					tool and trace around the subject instead. Slower, but reliable.
+				</li>
+				<li>
+					Press <code>Delete</code> to clear the selected pixels.
+					The checkerboard that appears is transparency, not a broken image.
+				</li>
+				<li>Zoom to 200% and clean up the edges with the eraser.</li>
+				<li>
+					<strong>Export as PNG.</strong> JPEG cannot store transparency &mdash;
+					this is the single most common cause of "my background came back white".
+				</li>
+			</ol>
+
+			<h2>3. Resize for the web</h2>
+			<ol>
+				<li>Open the image.</li>
+				<li>
+					<strong>Image &rarr; Resize</strong>. Enter the target width; keep
+					<em>constrain proportions</em> on unless you specifically want to stretch it.
+				</li>
+				<li>
+					Pick a sensible size rather than the largest you can get away with:
+					<ul>
+						<li>1200&ndash;1600&nbsp;px wide for blog hero images</li>
+						<li>800&ndash;1200&nbsp;px for inline article images</li>
+						<li>200&ndash;400&nbsp;px for thumbnails and avatars</li>
+					</ul>
+				</li>
+				<li>
+					For photographic content, export as <strong>WebP</strong> at quality 80 &mdash;
+					typically 25&ndash;35% smaller than JPEG at the same visual quality.
+					Use JPEG if you need compatibility with older software.
+				</li>
+				<li>
+					For screenshots, diagrams or anything with text and flat colour,
+					<strong>PNG</strong> is usually smaller <em>and</em> sharper than JPEG.
+				</li>
+			</ol>
+			<div class="note">
+				<p>
+					<strong>Downscaling is not lossless.</strong> If you might need the large
+					version later, keep the original and export a separate resized copy.
+				</p>
+			</div>
+
+			<h2>4. Work with layers</h2>
+			<p>Layers are what separate a quick tweak from real editing.</p>
+			<ol>
+				<li>
+					The <strong>Layers</strong> panel on the right lists everything, topmost first.
+				</li>
+				<li>
+					<strong>Layer &rarr; New</strong> adds an empty layer;
+					drag entries to reorder; the eye icon toggles visibility.
+				</li>
+				<li>
+					Set <strong>Opacity</strong> to fade a layer, or change its
+					<strong>blend mode</strong> to combine it with what is underneath.
+				</li>
+				<li>
+					<strong>Layer &rarr; Merge Down</strong> flattens a layer into the one below.
+					This is not undoable past the point you save, so only merge when you are sure.
+				</li>
+				<li>
+					Most export formats flatten automatically. To preserve your layers,
+					save in the project format and reopen it later.
+				</li>
+			</ol>
+
+			<h2>Keyboard shortcuts worth memorising</h2>
+			<table>
+				<tr><th>Shortcut</th><th>Action</th></tr>
+				<tr><td><code>Ctrl/⌘ + O</code></td><td>Open file</td></tr>
+				<tr><td><code>Ctrl/⌘ + S</code></td><td>Save / export</td></tr>
+				<tr><td><code>Ctrl/⌘ + Z</code></td><td>Undo</td></tr>
+				<tr><td><code>Ctrl/⌘ + C / V</code></td><td>Copy / paste</td></tr>
+				<tr><td><code>Ctrl/⌘ + A</code></td><td>Select all</td></tr>
+				<tr><td><code>Delete</code></td><td>Clear selected pixels</td></tr>
+				<tr><td><code>F3</code></td><td>Search</td></tr>
+			</table>
+			<p>
+				The full list lives in <strong>Help &rarr; Keyboard Shortcuts</strong> in the editor.
+			</p>
+
+			<h2>Troubleshooting</h2>
+			<table>
+				<tr><th>Symptom</th><th>Likely cause and fix</th></tr>
+				<tr>
+					<td>Transparency turns white on export</td>
+					<td>Exported to JPEG. Use PNG or WebP.</td>
+				</tr>
+				<tr>
+					<td>Image opens sideways</td>
+					<td>EXIF orientation. Use <strong>Image &rarr; Rotate</strong>, then re-export.</td>
+				</tr>
+				<tr>
+					<td>Filters are very slow</td>
+					<td>Large image. Crop first, or scale down before filtering.</td>
+				</tr>
+				<tr>
+					<td>Canvas is blank</td>
+					<td>JavaScript disabled, a blocked script, or a stale cached bundle. Reload.</td>
+				</tr>
+				<tr>
+					<td>Text cannot be edited</td>
+					<td>The layer was already rasterised. Undo, or retype it.</td>
+				</tr>
+				<tr>
+					<td>Work vanished after closing the tab</td>
+					<td>Nothing is stored server-side. Export before closing.</td>
+				</tr>
+			</table>
+
+			<p>
+				Still stuck? <a href="/contact">Contact us</a> or check the <a href="/faq">FAQ</a>.
+			</p>
+		</main>
+
+		<footer>
+			<p>
+				ImageForge &middot; free, open source, runs entirely in your browser.<br />
+				<a href="/">Editor</a> &middot;
+				<a href="/guides">Guides</a> &middot;
+				<a href="/faq">FAQ</a> &middot;
+				<a href="/about">About</a> &middot;
+				<a href="/contact">Contact</a> &middot;
+				<a href="/privacy">Privacy Policy</a> &middot;
+				<a href="/terms">Terms of Service</a>
+			</p>
+		</footer>
+	</div>
+</body>
+
+</html>
