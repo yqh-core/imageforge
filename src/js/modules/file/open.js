@@ -417,7 +417,7 @@ class File_open_class {
 	}
 
 	/**
-	 * check if url has url params, for example: https://online-drawing.pages.dev/?image=http://i.imgur.com/ATda8Ae.jpg
+	 * check if url has url params, for example: https://draw.digdevbox.com/?image=http://i.imgur.com/ATda8Ae.jpg
 	 */
 	maybe_file_open_url_handler() {
 		var _this = this;
