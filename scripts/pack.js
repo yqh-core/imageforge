@@ -96,6 +96,8 @@ const ROOT_FILES = [
 	'terms.html',
 	'faq.html',
 	'guides.html',
+	// AdSense 账户校验文件（域名根，必填）
+	'ads.txt',
 ];
 const COPY_DIRS = ['dist', 'images'];
 /** 演示数据，仅 examples/ 引用，不需要上线 */
