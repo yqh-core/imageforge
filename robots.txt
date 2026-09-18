@@ -1,0 +1,11 @@
+User-agent: Mediapartners-Google
+Allow: /
+
+User-agent: Google-Display-Ads-Bot
+Allow: /
+
+User-agent: *
+Allow: /
+
+# Everything runs client-side; nothing here needs to be hidden from crawlers.
+Sitemap: https://draw.digdevbox.com/sitemap.xml
