@@ -24,7 +24,15 @@
 	# 内容安全策略：白名单式，默认拒绝所有非同源资源。
 	#
 	# 这一条是照着实测出来的需要写的，不是抄的模板：
-	#   script-src 'self'          —— 没有内联脚本：页面里的内联事件属性
+	#   script-src 'self' https://static.cloudflareinsights.com
+	#                              —— 'self' 之外只放行 Cloudflare Web Analytics 的
+	#                                 beacon 脚本（CF 自动注入的统计探针，D001 最小放行）。
+	#                                 实测被拦请求：
+	#                                 https://static.cloudflareinsights.com/beacon.min.js/v<token>
+	#                                 违反 directive：script-src 'self'。
+	#                                 beacon 数据上报走 connect-src，已有 https: 兜底覆盖，
+	#                                 所以 script-src 只加这一个精确 host，不做其他放宽。
+	#                              —— 页面里的内联事件属性
 	#                                 （onchange=... 等，js/libs/popup.js）和
 	#                                 菜单里的 javascript:void(0) 都已改成
 	#                                 事件监听 + href="#"，所以这里不需要
@@ -51,7 +59,7 @@
 	#
 	# 刻意没写 frame-ancestors（等价于不设 X-Frame-Options）：
 	# examples/ 里的集成示例需要用 iframe 把本应用嵌进去。
-	Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https: blob: data:; font-src 'self' data:; media-src 'self' blob: data:; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests
+	Content-Security-Policy: default-src 'self'; script-src 'self' https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; connect-src 'self' https: blob: data:; font-src 'self' data:; media-src 'self' blob: data:; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests
 
 # ---------------------------------------------------------------- HTML 必须每次回源校验
 # dist/ 的文件名是稳定的（bundle.js），缓存失效靠 index.html 里

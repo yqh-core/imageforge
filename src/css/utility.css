@@ -79,3 +79,26 @@ input[type="number"].input_cw_15 { max-width: 18.25rem; }
 .ui_number_input.input_cw_13 { max-width: calc(14.25rem + var(--number-input-arrow-width)); }
 .ui_number_input.input_cw_14 { max-width: calc(15.25rem + var(--number-input-arrow-width)); }
 .ui_number_input.input_cw_15 { max-width: calc(16.25rem + var(--number-input-arrow-width)); }
+/* ----------------------------------------------------------------
+ * 移动端可用性（V1.2 修复 D004 / D005，2026-09-23）
+ * 桌面编辑器 UI 密度不变；仅在小屏 / 触屏设备上生效：
+ *   D004 —— 输入控件字号 ≥16px，避免 iOS 聚焦时整页自动放大。
+ *   D005 —— 触控目标 ≥44px（Apple HIG / WCAG 2.5.5）。
+ * 只动 input/select/textarea 与菜单/按钮类交互元素，画布与布局不动。
+ * ---------------------------------------------------------------- */
+@media (max-width: 768px), (pointer: coarse) {
+	input[type="text"], input[type="number"], input[type="search"],
+	input[type="email"], input[type="password"], select, textarea {
+		font-size: 16px;
+	}
+
+	.main_menu a, .submenu a, button, .ui_button_group > input[type="button"] {
+		min-height: 44px;
+		min-width: 44px;
+		box-sizing: border-box;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		vertical-align: middle;
+	}
+}
