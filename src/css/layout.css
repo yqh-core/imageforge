@@ -800,7 +800,7 @@ canvas{
 	border-top: 1px solid #3a4245;
 	font-size: 11px;
 	line-height: 24px;
-	color: #7d888c;
+	color: #93a0a5; /* V1.3 第一眼修复：#7d888c on #22282a 仅 4.11（11px 需 4.5） */
 	white-space: nowrap;
 }
 

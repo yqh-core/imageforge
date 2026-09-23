@@ -71,7 +71,8 @@
 			padding: 10px 20px;
 			border-radius: 6px;
 			border: 1px solid {{BRAND_THEME_COLOR}};
-			background: {{BRAND_THEME_COLOR}};
+			/* V1.3 第一眼修复：#fff 直接压 {{BRAND_THEME_COLOR}} 仅 3.9（16px 需 4.5），压深 20% 后 ≥5.5 */
+			background: color-mix(in srgb, {{BRAND_THEME_COLOR}} 80%, #000);
 			color: #fff;
 			font-weight: 600;
 			text-decoration: none;
@@ -85,8 +86,9 @@
 
 		a.button:hover { filter: brightness(1.1); }
 
-		.small { margin: 24px 0 0; font-size: 0.8125rem; color: #7d888c; }
-		.small a { color: #9fb0bd; }
+		/* V1.3 第一眼修复：#7d888c on #2b3234 仅 3.59（13px 需 4.5）→ 提亮一档 */
+		.small { margin: 24px 0 0; font-size: 0.8125rem; color: #9fb0bd; }
+		.small a { color: #b8c6d1; }
 	</style>
 </head>
 
