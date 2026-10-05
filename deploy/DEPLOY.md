@@ -169,7 +169,7 @@ npx wrangler pages deploy build
 **1. 先把仓库推上去**（本机没有 GitHub 凭据，这一步需要你在自己的终端执行）：
 
 ```bash
-cd D:/work/ImageForge
+cd <仓库根目录>
 git push -u origin main
 ```
 

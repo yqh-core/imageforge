@@ -99,12 +99,13 @@ const BRAND_EMAIL = (() => {
 })();
 
 /**
- * 上游 miniPaint 源码里写死的两个公开 demo key。它们不该再出现在我们的产物里 ——
- * 一旦有人顺手加回来，这个断言会立刻红，而不是等到某天功能静默失效才发现。
+ * 上游 miniPaint 源码里写死的两个公开 demo key（完整值见上游公开仓库）。它们不该再
+ * 出现在我们的产物里 —— 一旦有人顺手加回来，这个断言会立刻红，而不是等到某天功能
+ * 静默失效才发现。这里只保留足以唯一识别它们的短前缀，避免在本仓库硬编码完整 key。
  */
 const UPSTREAM_DEMO_KEYS = [
-	'3ca2cd8af3fde33af218bea02-9021417',
-	'AIzaSyAC_Tx8RKkvN235fXCUyi_5XhSaRCzNhMg',
+	'3ca2cd8af3fde33af218bea02-',
+	'AIzaSyAC_Tx8',
 ];
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));

@@ -87,7 +87,7 @@ const ROOT_FILES = [
 	'manifest.webmanifest',
 	'robots.txt',
 	'sitemap.xml',
-	// IndexNow 提交用的站点归属 key 文件（见 D:/work/_ops/indexnow-key.txt）
+	// IndexNow 提交用的站点归属 key 文件（key 文件在仓库外，不随仓分发）
 	'9765d1ca8a6604d220ffa976e8ba38ce.txt',
 	// v1.0 整改新增的站点级静态页（法律/说明）。
 	// Cloudflare Pages 会把 /about 自动映射到 about.html，
