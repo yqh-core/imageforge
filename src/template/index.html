@@ -139,6 +139,12 @@
 		<button class="left_mobile_menu" id="left_mobile_menu_button" type="button">
 			<span class="sr_only">Toggle Menu</span>
 		</button>
+		<!--
+			移动端唯一的主菜单入口（P0-2）：小屏不再把 File/Edit/View/... 一行硬塞进
+			390px（会截断成 File Edi View ...），改为单个带文字的按钮，点击后以
+			全屏抽屉展开菜单层级。带文字是为了和左右两个「纯图标」面板开关区分开。
+		-->
+		<button class="main_menu_toggle" id="main_menu_toggle_button" type="button">Menu</button>
 		<button class="right_mobile_menu" id="mobile_menu_button" type="button">
 			<span class="sr_only">Toggle Menu</span>
 		</button>

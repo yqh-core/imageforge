@@ -432,7 +432,16 @@ async function main() {
 	// ---------- 首屏 ----------
 	console.log('\n-- first paint --');
 	await send('Page.navigate', { url: BASE + '/' });
-	await sleep(5000);
+	// bundle 约 1.2MB，headless 冷启动下执行可超过固定等待（实测两次把首屏
+	// 断言全线打挂：AppConfig/menu/POP 全部量到 undefined）。改为轮询等
+	// gui-menu render_main 收尾时加上的 body.loaded，上限 20s 兜底。
+	for (let i = 0; i < 40; i++) {
+		const ready = await evaluate(
+			'document.readyState === "complete" && !!document.body && document.body.classList.contains("loaded")'
+		).catch(() => false);
+		if (ready) break;
+		await sleep(500);
+	}
 
 	check('title contains brand name', new RegExp(esc(BRAND.name)).test(await evaluate('document.title')),
 		await evaluate('document.title'));

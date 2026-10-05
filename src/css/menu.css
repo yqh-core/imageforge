@@ -190,13 +190,62 @@
 .left_mobile_menu { left:0; }
 .right_mobile_menu { right:0; }
 
+/* P0-2：移动端唯一主菜单入口（桌面端不渲染） */
+.main_menu_toggle {
+	display: none;
+}
+
 @media screen and (max-width:700px) {
 	.mobile_menu {
 		display: block;
 	}
+	/* 带文字的菜单按钮：与左右两个纯图标面板开关区分，消除「两个汉堡分不清」 */
+	.main_menu_toggle {
+		display: flex;
+		align-items: center;
+		position: absolute;
+		left: 50px;
+		top: 0;
+		height: 50px;
+		padding: 0 16px;
+		z-index: 200;
+		border: 0;
+		outline: 0;
+		cursor: pointer;
+		background-color: transparent;
+		color: var(--menu-text-color);
+		font-family: Arial, Helvetica, sans-serif;
+		font-size: 14px;
+	}
+	/* 顶栏在移动端保留一条 50px 的空条，承载左右面板开关 + Menu 按钮；
+	   横向菜单项整条隐藏（原 390px 下被两个汉堡挤成 File Edi View ... 的根因） */
 	.main_menu > ul.menu_bar {
+		display: none;
 		height: 50px;
 		padding-left: 50px;
 		padding-right: 50px;
+	}
+	/* 抽屉打开：横向菜单栏变成顶栏下方的全屏纵向列表 */
+	body.main_menu_open .main_menu > ul.menu_bar {
+		display: flex;
+		flex-direction: column;
+		position: fixed;
+		top: 50px;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		height: auto;
+		padding: 0;
+		overflow-y: auto;
+		background: var(--menu-background-color);
+		box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+	}
+	body.main_menu_open .main_menu > ul.menu_bar > li {
+		height: auto;
+		border-bottom: 1px solid var(--menu-dropdown-divider-color);
+	}
+	body.main_menu_open .main_menu > ul.menu_bar > li > a {
+		height: 46px;
+		font-size: 15px;
 	}
 }

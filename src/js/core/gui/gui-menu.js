@@ -47,6 +47,28 @@ class GUI_menu_class {
 		document.body.addEventListener('touchstart', (event) => { return this.on_mouse_down_body(event); }, true);
 		window.addEventListener('resize', (event) => { return this.on_resize_window(event); }, true);
 
+		// P0-2：移动端唯一主菜单入口（模板 .mobile_menu 里的文字按钮）。
+		// 小屏隐藏横向菜单栏，点击它以全屏抽屉展开；桌面端该按钮不渲染样式。
+		const mobileToggle = document.getElementById('main_menu_toggle_button');
+		if (mobileToggle) {
+			mobileToggle.addEventListener('click', () => {
+				const open = document.body.classList.toggle('main_menu_open');
+				if (open) {
+					// 打开时收起可能残留的下拉，从干净状态开始
+					this.close_child_dropdowns(0);
+				}
+			});
+		}
+
+		// P0-2：Escape 在任何焦点位置都能收起抽屉（document 级捕获，
+		// 不依赖焦点是否在菜单里；menuContainer 内部的键盘导航不受影响）
+		document.addEventListener('keydown', (event) => {
+			if (['Esc', 'Escape'].includes(event.key) && this.is_mobile_menu_open()) {
+				this.close_mobile_menu();
+				this.close_child_dropdowns(0);
+			}
+		}, true);
+
 		document.body.classList.add('loaded');
 	}
 
@@ -103,10 +125,27 @@ class GUI_menu_class {
 	on_mouse_down_body(event) {
 		const target = event.touches && event.touches.length > 0 ? event.touches[0].target : event.target;
 
-		// Clicked outside of menu; close dropdowns.
 		if (target && !this.menuContainer.contains(target)) {
+			// P0-2：点在菜单区域外 → 收起移动端抽屉（若开着）并关闭所有下拉。
+			// 注意排除 Menu 按钮本身：它在 .mobile_menu 里、不在 menuContainer 内，
+			// mousedown 先行关闭、click 再 toggle 会把它刚打开的抽屉立即关上。
+			if (target.id !== 'main_menu_toggle_button'
+				&& !target.closest('#main_menu_toggle_button')) {
+				this.close_mobile_menu();
+			}
 			this.close_child_dropdowns(0);
 		}
+	}
+
+	/**
+	 * P0-2：移动端抽屉开关状态
+	 */
+	is_mobile_menu_open() {
+		return document.body.classList.contains('main_menu_open');
+	}
+
+	close_mobile_menu() {
+		document.body.classList.remove('main_menu_open');
 	}
 
 	on_focus_menu_bar(event) {
@@ -303,6 +342,9 @@ class GUI_menu_class {
 		// Close the dropdown
 		this.close_child_dropdowns(0);
 
+		// P0-2：移动端抽屉里选中任意动作 → 自动收起抽屉，回到画布
+		this.close_mobile_menu();
+
 		// Emit callback events for triggered links
 		if (definition.target) {
 			this.emit('select_target', definition.target, definition);
@@ -373,7 +415,9 @@ class GUI_menu_class {
 			const dropdownElement = this.dropdownStack[level].element;
 			const openerRect = this.dropdownStack[level].opener.getBoundingClientRect();
 
-			topNavHeight = openerRect.height;
+			// P0-2：移动端抽屉里 opener 可能位于屏幕中部（不再是顶部横条），
+			// 下拉的可用高度必须从 opener 底边算到视口底，桌面端（y≈0）行为不变。
+			topNavHeight = openerRect.y + openerRect.height;
 			const dropdownMaxHeight = vh - topNavHeight - this.dropdownMaxHeightMargin;
 			dropdownElement.style.maxHeight = dropdownMaxHeight + 'px';
 			const dropdownRect = dropdownElement.getBoundingClientRect();
