@@ -526,10 +526,18 @@ async function main() {
 	check('Help menu opens', opened === 'clicked Help', opened);
 	await sleep(600);
 
+	// Help 菜单下有两个 About：外链项 "About ImageForge"（href=站点 /about 页）与弹窗项
+	// "About ..."（href="#"，target=help/about.about）。以前用 /^about/i 取第一个 → 点到外链
+	// 项 → 页面跳转、弹窗从未打开 → hasDialog/hasRepo/hasEmail/hasMIT 四项连锁假 FAIL。
+	// 这里只取弹窗项（href 为空或 #）。
 	const about = await evaluate(`(function(){
 		var nav = document.getElementById('main_menu');
 		var links = Array.prototype.slice.call(nav.querySelectorAll('a'));
-		var a = links.filter(function(x){ return /^about/i.test(x.textContent.trim()); })[0];
+		var cands = links.filter(function(x){ return /^About/.test(x.textContent.trim()); });
+		var a = cands.filter(function(x){
+			var h = x.getAttribute('href');
+			return !h || h === '#';
+		})[0] || cands[cands.length - 1];
 		if (!a) return 'no About item';
 		a.click();
 		return 'clicked About';
@@ -540,28 +548,45 @@ async function main() {
 	const expect = JSON.stringify({
 		name: BRAND.name,
 		repo: (BRAND.repository || '').replace(/^https?:\/\//, ''),
+		site: (BRAND.site || '').replace(/^https?:\/\//, ''),
 		email: BRAND_EMAIL,
 		upstream: (BRAND.upstream && BRAND.upstream.name) || 'miniPaint',
 	});
 	const dlg = await evaluate(`(function(){
 		var want = ${expect};
-		var box = document.querySelector('.alertify, .popup, .dialog, .modal');
-		var html = document.body.innerHTML;
-		var text = document.body.innerText;
+		var box = document.querySelector('.popup');
+		if (!box) {
+			return JSON.stringify({ hasDialog: false, hasName: false, hasRepo: false,
+				hasSite: false, hasEmail: false, hasUpstream: false, hasMIT: false,
+				repoHref: null, why: 'no .popup element' });
+		}
+		// 只在弹窗 DOM 内匹配：body-wide 匹配会命中 index.html 的 SEO 注释里的
+		// "miniPaint" 字样，弹窗没打开也判 true —— 恒真式误通过，比假失败更危险。
+		var html = box.innerHTML;
+		var text = box.innerText || '';
+		var gh = [].slice.call(box.querySelectorAll('a')).filter(function(a){
+			return /github\\.com/i.test(a.getAttribute('href') || '');
+		})[0];
 		return JSON.stringify({
-			hasDialog: !!box,
+			hasDialog: true,
 			hasName: text.indexOf(want.name) !== -1,
 			hasRepo: html.indexOf(want.repo) !== -1,
+			hasSite: html.indexOf(want.site) !== -1,
 			hasEmail: html.indexOf(want.email) !== -1,
 			hasUpstream: html.indexOf(want.upstream) !== -1,
-			hasMIT: /MIT/.test(html)
+			hasMIT: /MIT/.test(text),
+			repoHref: gh ? gh.getAttribute('href') : null
 		});
 	})()`);
 	const d = JSON.parse(dlg);
 	check('About dialog rendered', d.hasDialog, dlg);
 	check('About shows brand name', d.hasName, BRAND.name);
 	check('About shows repository link', d.hasRepo, BRAND.repository);
+	check('About shows website link', d.hasSite, BRAND.site);
 	check('About shows contact email', d.hasEmail, BRAND_EMAIL);
+	// 防退化：GitHub 行必须真的是 github.com 仓库地址，而不是被私有化改成站点根
+	check('About GitHub row points to a real GitHub repo',
+		/^https:\/\/github\.com\/[^/]+\/[^/]+/.test(d.repoHref || ''), d.repoHref);
 	check('About keeps upstream attribution (' + (BRAND.upstream && BRAND.upstream.name) + ' + MIT)',
 		d.hasUpstream && d.hasMIT);
 	await screenshot('about.png');

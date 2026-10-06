@@ -10,7 +10,8 @@
 		"domain": "gmail.com"
 	},
 	"site": "https://draw.digdevbox.com",
-	"repository": "https://digdevbox.com/",
+	"network": "https://digdevbox.com",
+	"repository": "https://github.com/yqh-core/imageforge",
 	"issues": "https://digdevbox.com/contact",
 	"locale": "en",
 	"themeColor": "#2f7df6",

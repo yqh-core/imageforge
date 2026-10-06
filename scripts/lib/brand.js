@@ -69,6 +69,8 @@ function buildTokens(options) {
 		BRAND_AUTHOR: brand.author || brand.name,
 		BRAND_EMAIL: resolveEmail(brand),
 		BRAND_SITE: String(brand.site || '').replace(/\/+$/, ''),
+		// 站群入口（工具群首页）。与 site 区分：site 是本产品，network 是产品矩阵。
+		BRAND_NETWORK: String(brand.network || brand.site || '').replace(/\/+$/, ''),
 		BRAND_REPOSITORY: brand.repository || '',
 		BRAND_ISSUES: brand.issues || (brand.repository ? brand.repository + '/issues' : ''),
 		BRAND_LOCALE: brand.locale || 'en',
