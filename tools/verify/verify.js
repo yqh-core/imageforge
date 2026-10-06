@@ -543,11 +543,18 @@ async function main() {
 		return 'clicked About';
 	})()`);
 	check('About item present and clicked', about === 'clicked About', about);
-	await sleep(1200);
+	// 固定 sleep 会偶发假红：冷启动或首帧慢时 .popup 还没渲染就被断言（实测出现过一次
+	// hasDialog:false 连带 4 项 FAIL，重跑又全绿）。改成轮询等待弹窗真正出现。
+	for (let i = 0; i < 20; i++) {
+		const shown = await evaluate(`!!document.querySelector('.popup')`).catch(() => false);
+		if (shown) break;
+		await sleep(250);
+	}
 
 	const expect = JSON.stringify({
 		name: BRAND.name,
 		repo: (BRAND.repository || '').replace(/^https?:\/\//, ''),
+		repoFull: BRAND.repository || '',
 		site: (BRAND.site || '').replace(/^https?:\/\//, ''),
 		email: BRAND_EMAIL,
 		upstream: (BRAND.upstream && BRAND.upstream.name) || 'miniPaint',
@@ -564,8 +571,10 @@ async function main() {
 		// "miniPaint" 字样，弹窗没打开也判 true —— 恒真式误通过，比假失败更危险。
 		var html = box.innerHTML;
 		var text = box.innerText || '';
+		// 必须精确取 href === brand.repository 的那个 a，不能取「弹窗内第一个 github.com 链接」：
+		// Based on 行的 miniPaint 链接也是 github.com，那样写会让本断言恒真（已实测踩过）。
 		var gh = [].slice.call(box.querySelectorAll('a')).filter(function(a){
-			return /github\\.com/i.test(a.getAttribute('href') || '');
+			return (a.getAttribute('href') || '') === want.repoFull;
 		})[0];
 		return JSON.stringify({
 			hasDialog: true,
