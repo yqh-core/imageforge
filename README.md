@@ -7,6 +7,12 @@ export images without uploading anything to a server — no install, no account,
 
 Built on top of [miniPaint](https://github.com/viliusle/miniPaint) (MIT).
 
+## Screenshots
+
+![ImageForge editor](.github/assets/editor.png)
+
+![Editing with brush strokes](.github/assets/editing.png)
+
 ---
 
 ## Quick start
@@ -56,7 +62,7 @@ npm run serve        # webpack dev server，改代码自动重载
   "description": "...",                        // SEO description / og:description / 关于弹窗
   "author": "ImageForge",
   "email": "yqhgry@gmail.com",                 // 关于弹窗里的邮箱
-  "site": "https://online-drawing.pages.dev",  // 绝对域名：canonical / og:url / og:image / sitemap
+  "site": "https://draw.digdevbox.com",        // 绝对域名：canonical / og:url / og:image / sitemap
   "repository": "https://github.com/yqh-core/imageforge",     // 关于弹窗 GitHub、导出 JSON 元信息
   "issues": "https://github.com/yqh-core/imageforge/issues",  // 菜单 Help → Report Issues
   "themeColor": "#2f7df6",
