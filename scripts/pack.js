@@ -101,7 +101,8 @@ const ROOT_FILES = [
 	// AdSense 账户校验文件（域名根，必填）
 	'ads.txt',
 ];
-const COPY_DIRS = ['dist', 'images'];
+// css：dd-tokens/dd-shell（P2 点缀方案 2026-10-13）——index.html 同步 link 引用，必须上线。
+const COPY_DIRS = ['dist', 'images', 'css'];
 /** 演示数据，仅 examples/ 引用，不需要上线 */
 const SKIP_FILES = new Set(['images/test-collection.json']);
 

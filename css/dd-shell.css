@@ -1,0 +1,212 @@
+/* ==========================================================================
+   DigDevBox · dd-shell.css — 统一家族外壳（组件层）
+   --------------------------------------------------------------------------
+   @sync-hash: 001de856bd82
+   版本 v1.5 | 2026-10-06 | 由 _ops/sync-design-tokens.mjs 分发到各站，勿手改副本
+   v1.5 变更（i18n Phase 1 语言切换按钮）：
+     - .dd-lang-toggle：复用 .dd-theme-toggle 样式族，margin-left 8px 紧跟 nav，
+       与主题按钮并列于品牌条右侧；初始文案空，由 dd-i18n.js apply() 填充
+   v1.4 变更（P1-4 共享导航移动端修复）：
+     - 收编各站副本的 V1.2 触控块与 .dd-trustline（消灭三站分叉）
+     - 修复触控块裸 `nav a` 误伤 .dd-brandbar / .dd-brandfoot 紧凑导航
+       （44px 强制高度曾把品牌条撑爆并换行，推挤首屏——P0 审计 P1-4 病根）
+     - .dd-brandbar nav 改单行：不再换行，溢出转条内横向滑动（高度恒定）
+
+   依赖：必须在本文件之前引入 dd-tokens.css（本文件只用 var(--dd-*)）。
+   约束：**只使用 .dd-* 类命名空间**，不污染站点既有样式；不设全局 body/html 规则。
+
+   ⚠ 命名空间占用（2026-09-18 全域扫描结论，改动前务必复查）：
+     - CSS 变量 `--dd-*`：6 站均无占用 → 变量层安全。
+     - 类名：`dd-foot` 被 fangdai-master 占用 18 处（`<div class="dd-foot">`，虽无样式定义）；
+       dev-toolbox 占用 dd-plist / dd-fab / dd-q / dd-phead / dd-pfoot / dd-modal / dd-cnt / dd-panel。
+     - 因此本文件的品牌页脚命名为 **`.dd-brandfoot`**，刻意避开 `.dd-foot`。
+
+   两种品牌条形态：
+     .dd-brandbar          56px 主形态（内容体量大时用）
+     .dd-brandbar.slim     38px 轻量形态（卫星站用，避免与站点自身导航抢视觉）
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. 顶栏 .dd-brandbar —— 统一品牌条
+   建议标记：
+   <div class="dd-brandbar slim">
+     <div class="dd-shell-inner">
+       <a class="dd-brand" href="https://digdevbox.com/">
+         <span class="dd-brand-mark">DB</span>DigDevBox
+       </a>
+       <nav>
+         <a href="https://digdevbox.com/">DigDevBox</a>
+         <a href="https://coderkit.pages.dev/">开发者工具箱</a>
+         <a href="https://streamplay-ey1.pages.dev/" aria-current="page">流影播放器</a>
+       </nav>
+     </div>
+   </div>
+   -------------------------------------------------------------------------- */
+.dd-brandbar {
+  display: block;
+  background: var(--dd-primary);
+  color: var(--dd-on-primary);
+  font-family: var(--dd-font);
+  font-size: 15px;
+  box-sizing: border-box;
+}
+.dd-brandbar > .dd-shell-inner {
+  display: flex; align-items: center; gap: 12px;
+  min-height: 56px;
+}
+.dd-brandbar *,
+.dd-brandfoot * { box-sizing: border-box; }
+.dd-brandbar a { color: var(--dd-on-primary); text-decoration: none; opacity: .92; }
+.dd-brandbar a:hover { opacity: 1; }
+.dd-brandbar .dd-brand {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-weight: 700; font-size: 17px; letter-spacing: .3px; white-space: nowrap;
+}
+.dd-brandbar .dd-brand-mark {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: var(--dd-radius-sm);
+  background: rgba(255, 255, 255, .18);
+  font-size: 12px; font-weight: 800; letter-spacing: .5px;
+}
+.dd-brandbar nav {
+  /* P1-4：单行硬约束。换行会让品牌条高度随内容变化、推挤首屏；
+     放不下时改为条内横向滑动（移动端手势自然，桌面放得下永远不触发）。 */
+  margin-left: auto; display: flex; gap: 20px; flex-wrap: nowrap;
+  overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  align-items: center;
+}
+.dd-brandbar nav::-webkit-scrollbar { display: none; }
+.dd-brandbar nav a { font-size: 14px; white-space: nowrap; flex: none; }
+.dd-brandbar nav a[aria-current="page"] {
+  font-weight: 600; opacity: 1;
+  text-decoration: underline; text-underline-offset: 4px;
+}
+
+/* 轻量形态：卫星站顶部用，38px，小字号，不与站点自身导航抢视觉 */
+.dd-brandbar.slim > .dd-shell-inner { min-height: 38px; gap: 10px; }
+.dd-brandbar.slim .dd-brand { font-size: 14px; font-weight: 600; gap: 6px; }
+.dd-brandbar.slim .dd-brand-mark { width: 20px; height: 20px; font-size: 9px; }
+.dd-brandbar.slim nav { gap: 16px; }
+.dd-brandbar.slim nav a { font-size: 12.5px; opacity: .88; }
+
+/* 内容容器：与卫星站内容同宽（默认 900px，可用 --dd-shell-max 覆盖） */
+.dd-shell-inner {
+  max-width: var(--dd-shell-max, 900px);
+  margin: 0 auto; padding: 0 16px; width: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   2. 品牌页脚 .dd-brandfoot（刻意不叫 .dd-foot —— 见文件头命名空间说明）
+   建议标记：
+   <footer class="dd-brandfoot compact">
+     <div class="dd-shell-inner">
+       <p class="dd-brandfoot-title">DigDevBox · 免费在线开发者工具集</p>
+       <nav class="dd-brandfoot-nav">…跨站链接…</nav>
+     </div>
+   </footer>
+   .compact = 单行紧凑形态（附带在站点自有页脚之后时用）
+   -------------------------------------------------------------------------- */
+.dd-brandfoot {
+  margin-top: 40px;
+  padding: 20px 0 28px;
+  border-top: 1px solid var(--dd-border);
+  background: var(--dd-bg);
+  color: var(--dd-text-muted);
+  font-family: var(--dd-font);
+  font-size: 13px;
+  line-height: 1.7;
+}
+.dd-brandfoot a { color: var(--dd-primary); text-decoration: none; }
+.dd-brandfoot a:hover { text-decoration: underline; }
+.dd-brandfoot-title { margin: 0 0 6px; font-weight: 600; color: var(--dd-text-soft); }
+.dd-brandfoot-nav { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 0 0 6px; }
+.dd-brandfoot-copy { margin: 0; opacity: .85; }
+
+.dd-brandfoot.compact { margin-top: 0; padding: 14px 0 18px; font-size: 12.5px; }
+.dd-brandfoot.compact > .dd-shell-inner {
+  display: flex; flex-wrap: wrap; align-items: center;
+  justify-content: space-between; gap: 8px 18px;
+}
+.dd-brandfoot.compact .dd-brandfoot-title { margin: 0; font-weight: 500; }
+.dd-brandfoot.compact .dd-brandfoot-nav { margin: 0; gap: 4px 14px; }
+
+/* --------------------------------------------------------------------------
+   3. 通用件 .dd-btn / .dd-card
+   -------------------------------------------------------------------------- */
+.dd-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  border: 1px solid var(--dd-primary); background: var(--dd-primary);
+  color: var(--dd-on-primary); padding: 8px 16px; border-radius: var(--dd-radius-sm);
+  font-size: 14px; font-family: var(--dd-font); cursor: pointer;
+  transition: background .15s, border-color .15s;
+  text-decoration: none;
+}
+.dd-btn:hover { background: var(--dd-primary-hover); border-color: var(--dd-primary-hover); }
+.dd-btn.ghost { background: var(--dd-surface); color: var(--dd-primary); }
+.dd-btn.ghost:hover { background: var(--dd-primary-soft); }
+
+.dd-card {
+  background: var(--dd-surface); border: 1px solid var(--dd-border);
+  border-radius: var(--dd-radius); padding: 16px 18px;
+  box-shadow: var(--dd-shadow);
+}
+
+/* --------------------------------------------------------------------------
+   4. 响应式（仅窄屏收紧，不改变布局结构）
+   -------------------------------------------------------------------------- */
+@media (max-width: 640px) {
+  .dd-brandbar > .dd-shell-inner { min-height: 50px; gap: 8px; padding: 0 12px; }
+  .dd-brandbar .dd-brand { font-size: 15px; }
+  .dd-brandbar .dd-brand-mark { width: 22px; height: 22px; font-size: 10px; }
+  .dd-brandbar nav { gap: 12px; }
+  .dd-brandbar nav a { font-size: 13px; }
+  .dd-brandbar.slim > .dd-shell-inner { min-height: 34px; padding: 0 12px; }
+  .dd-brandbar.slim nav { gap: 10px; }
+  .dd-brandbar.slim nav a { font-size: 11.5px; }
+}
+
+/* ----------------------------------------------------------------
+ * 移动端可用性（V1.2 修复 D004 / D005；P1-4 收编 + 修正，2026-10-06）
+ * 仅小屏/触屏生效：输入控件 >=16px（防 iOS 聚焦放大）；触控目标 >=44px。
+ * ⚠ P1-4 修正：裸 `nav a` 会同时命中 .dd-brandbar / .dd-brandfoot 的
+ *   紧凑导航链接，44px 强制高度曾把 slim 品牌条撑爆并换行（两行 88px+，
+ *   推挤首屏）。这里对品牌条显式豁免，改用垂直 padding 达到触控高度、
+ *   高度恒定不换行；页脚是多行形态，保留 44px 无副作用。
+ * ---------------------------------------------------------------- */
+@media (max-width: 768px), (pointer: coarse) {
+	input[type="text"], input[type="number"], input[type="search"],
+	input[type="email"], input[type="url"], input[type="password"],
+	select, textarea {
+		font-size: 16px !important;
+	}
+	a.ui-btn, button, .btn, nav a {
+		min-height: 44px;
+		min-width: 44px;
+		box-sizing: border-box;
+	}
+	/* 品牌条豁免：恢复内容自适应尺寸，触控高度用 padding 补足（≈44px 行框） */
+	.dd-brandbar nav a {
+		min-height: 0; min-width: 0; padding: 13px 0;
+	}
+	/* 主题按钮自带固定尺寸（34/30px，见 inject-dd-shell 注入的内联样式），
+	   且有 focus-visible 描边兜底可达性，不参与 44px 强制 */
+	.dd-brandbar button.dd-theme-toggle {
+		min-height: 0; min-width: 0;
+	}
+}
+
+/* i18n 语言切换按钮（v1.5）：复用 .dd-theme-toggle 全部样式（类并列），
+   仅改与 nav 的间距——nav 的 margin-left:auto 已把右侧按钮群推到底，
+   语言按钮用固定 8px 间距紧贴，主题按钮随后；两个 auto margin 并存会平分
+   剩余空间导致 nav 悬空，故语言按钮必须显式覆盖为固定值。 */
+.dd-brandbar .dd-lang-toggle {
+  margin-left: 8px;
+}
+
+/* P5 信任声明小字（footer 内，弱化展示）—— 自三站副本收编进真源（v1.4） */
+.dd-trustline {
+    margin: 10px 0 0;
+    font-size: 12px;
+    line-height: 1.7;
+    color: #8a8f98;
+}

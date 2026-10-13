@@ -4,9 +4,9 @@
 	--text-color: #f4f3f3;
 	--text-color-muted: #c1c1c1;
 	--text-color-red: #e38282;
-	--text-color-green: #8bdb8b;
+	--text-color-green: var(--dd-primary-hover);  /* P2: 品牌点缀 */
 	--text-color-blue: #a4a4ff;
-	--link-color: #9ffda5;
+	--link-color: var(--dd-primary-hover);  /* P2: 品牌点缀 teal */
 	--section-background-color: #323a3c;
 	--area-background-color: #464d4f;
 	--block-background-color: #464d4f;
@@ -23,7 +23,7 @@
 	--input-background-color-hover: #383f44;
 	--input-text-color: #f4f3f3;
 	--input-border-color: #0f0f0f;
-	--input-border-color-active: #70996e;
+	--input-border-color-active: var(--dd-primary);  /* P2 */
 	--input-border-radius: .4rem;
 	--input-group-border-color:  #323a3c;
 	--menu-background-color: #222;
@@ -45,9 +45,9 @@ body.theme-light{
 	--text-color: #0c0c0d;
 	--text-color-muted: #444444;
 	--text-color-red: #bb2424;
-	--text-color-green: #2b882b;
+	--text-color-green: var(--dd-primary);  /* P2 */
 	--text-color-blue: #5454ca;
-	--link-color: #000080;
+	--link-color: var(--dd-primary);  /* P2 */
 	--section-background-color: #eaeaea;
 	--area-background-color: #d9d9d9;
 	--block-background-color: #eaeaea;
@@ -55,7 +55,7 @@ body.theme-light{
 	--button-background-color: #f9f9fa;
 	--button-background-color-hover: #ddd;
 	--button-background-color-active: #f3f3f3;
-	--button-text-color-active: #59aed8;
+	--button-text-color-active: var(--dd-primary);  /* P2 */
 	--button-shadow-color: rgba(0, 0, 0, 0.1);
 	--button-toggle-background-color: #b7b7b7;
 	--button-toggle-background-color-hover: #b7b7b7;
@@ -63,7 +63,7 @@ body.theme-light{
 	--input-background-color-hover: #ddd;
 	--input-text-color: #0c0c0d;
 	--input-border-color: #ccc;
-	--input-border-color-active: #59aed8;
+	--input-border-color-active: var(--dd-primary);  /* P2 */
 	--input-group-border-color: #c4c4c4;
 	--menu-background-color: #eaeaea;
 	--menu-icons-filter: none;
