@@ -162,6 +162,82 @@
 		<a href="/terms">Terms</a>
 		<span class="optional">ImageForge &middot; Free online image editor</span>
 	</footer>
+
+	<!--
+		SEO 正文（2026-10-24）：miniPaint 用 div 渲染界面，此前可见正文仅 47 词（全是 UI 标签）。
+		本节为纯静态 HTML，位于 wrapper 之外，不干扰编辑器布局与 DOM 查询。
+		功能描述以 src/js/tools/ 工具注册表、probe 验收项（画笔/图层/撤销/导出/多语言）
+		与 faq/privacy 既有表述为据，不编造。
+	-->
+	<section class="seo-guide">
+		<h2>A layer-based image editor that runs in your browser</h2>
+		<p>
+			ImageForge is a free image editor built on miniPaint. Everything happens inside your
+			browser tab: open an image by dragging it onto the canvas, edit it with real layers,
+			and export the result without a single byte being uploaded to a server.
+		</p>
+		<h3>Layers, undo and the tool rail</h3>
+		<p>
+			Editing is layer-based the way desktop editors are: add, reorder, duplicate and hide
+			layers, then undo or redo any step. The left rail holds the working tool set &mdash;
+			brush and pencil, shapes, text, crop, selection, fill, gradient, erase and a clone
+			stamp &mdash; plus filters such as blur, sharpen and desaturate, and a magic-erase
+			tool for backgrounds. The right panels keep the preview, colour pickers, document
+			information and layer details one click away.
+		</p>
+		<h3>Formats you can open and export</h3>
+		<p>
+			Open PNG, JPEG, WebP, GIF, BMP and SVG &mdash; whatever your browser can decode.
+			Export back to PNG, JPEG, WebP, GIF, BMP, or SVG for vector content. A transparent
+			PNG stays transparent as long as you export to a format that supports alpha.
+		</p>
+		<h3>Your images never leave the device</h3>
+		<p>
+			There is no upload step because there is no server involved: decoding, editing and
+			encoding all run locally. Once loaded, the editor also works offline, sets no
+			cookies of its own, and stores your preferences in the browser's localStorage.
+			The interface is available in several languages.
+		</p>
+		<details>
+			<summary>Do I need to install anything or sign up?</summary>
+			<p>No. ImageForge runs in the browser &mdash; no install, no account, no sign-in.</p>
+		</details>
+		<details>
+			<summary>Are my images uploaded anywhere?</summary>
+			<p>No. All processing happens in your browser tab; nothing is transmitted to a server.</p>
+		</details>
+		<details>
+			<summary>Can I use it offline?</summary>
+			<p>Yes &mdash; once the editor has loaded, it keeps working without a network connection.</p>
+		</details>
+		<p>
+			Step-by-step walkthroughs live in the <a href="/guides">Guides</a>, more answers in
+			the <a href="/faq">FAQ</a>, and the background story on the <a href="/about">About</a> page.
+		</p>
+	</section>
+	<script type="application/ld+json">
+	{
+		"@context": "https://schema.org",
+		"@type": "FAQPage",
+		"mainEntity": [
+			{
+				"@type": "Question",
+				"name": "Do I need to install anything or sign up?",
+				"acceptedAnswer": { "@type": "Answer", "text": "No. ImageForge runs in the browser — no install, no account, no sign-in." }
+			},
+			{
+				"@type": "Question",
+				"name": "Are my images uploaded anywhere?",
+				"acceptedAnswer": { "@type": "Answer", "text": "No. All processing happens in your browser tab; nothing is transmitted to a server." }
+			},
+			{
+				"@type": "Question",
+				"name": "Can I use it offline?",
+				"acceptedAnswer": { "@type": "Answer", "text": "Yes — once the editor has loaded, it keeps working without a network connection." }
+			}
+		]
+	}
+	</script>
 </body>
 
 </html>

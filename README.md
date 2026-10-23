@@ -1,7 +1,7 @@
 # ImageForge
 
 Free online image editor that runs entirely in the browser. Open, retouch, layer, filter and
-export images without uploading anything to a server — no install, no account, no ads.
+export images without uploading anything to a server — no install, no account.
 
 **Try it online:** <https://draw.digdevbox.com/>
 
