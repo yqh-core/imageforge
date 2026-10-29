@@ -59,13 +59,16 @@
 	</script>
 
 	<!--
-		同步加载：样式表是打进 bundle 的，若改成 async/defer，
-		浏览器会先渲染无样式的 HTML，出现明显闪烁。
-		这里保持同步，代价是首屏稍晚，收益是加载过程完全无视觉跳变。
+		[perf 2026-10-29] 原「样式打进 bundle 同步加载」方案已改为 CSS 拆分：
+		webpack style-loader → MiniCssExtractPlugin，样式产出独立 dist/bundle.css，
+		以 <link> 在 head 渲染阻塞加载（体积 ~20KB，先于首绘就位，无 FOUC）；
+		bundle.js（1.2MB，纯 JS）改 defer，不再阻塞渲染（原同步方案阻塞 1651ms）。
+		层叠顺序：bundle.css 在 dd-tokens 之后，与原运行时注入位置一致。
 	-->
 	<link rel="stylesheet" href="css/dd-tokens.css" />
-	<!-- dd-tokens：DigDevBox 设计令牌（P2 点缀方案 2026-10-13）。同步加载与 bundle 同理由。 -->
-	<script src="dist/bundle.js?v={{BUILD_HASH}}"></script>
+	<!-- dd-tokens：DigDevBox 设计令牌（P2 点缀方案 2026-10-13）。 -->
+	<link rel="stylesheet" href="dist/bundle.css?v={{BUILD_HASH}}" />
+	<script defer src="dist/bundle.js?v={{BUILD_HASH}}"></script>
 
 	<!-- AdSense 账户验证 + Auto Ads -->
 	<meta name="google-adsense-account" content="ca-pub-7944759654100814" />
