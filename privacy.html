@@ -6,7 +6,7 @@
 	<meta http-equiv="x-ua-compatible" content="IE=edge" />
 
 	<title>Privacy Policy - ImageForge</title>
-	<meta name="description" content="How ImageForge handles your data: your images are processed in your browser and never uploaded. No account, no tracking cookies." />
+	<meta name="description" content="ImageForge processes images in your browser. Optional Google Analytics loads only after consent; image files, canvas pixels and layers are never sent to GA4." />
 	<meta name="author" content="ImageForge" />
 	<meta name="robots" content="index, follow, max-image-preview:large" />
 	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5.0, user-scalable=yes" />
@@ -21,17 +21,17 @@
 	<meta property="og:type" content="article" />
 	<meta property="og:site_name" content="ImageForge" />
 	<meta property="og:title" content="Privacy Policy - ImageForge" />
-	<meta property="og:description" content="How ImageForge handles your data: your images are processed in your browser and never uploaded. No account, no tracking cookies." />
+	<meta property="og:description" content="ImageForge processes images in your browser. Optional Google Analytics loads only after consent; image files, canvas pixels and layers are never sent to GA4." />
 	<meta property="og:url" content="https://draw.digdevbox.com/privacy" />
 	<meta property="og:image" content="https://draw.digdevbox.com/images/preview.jpg" />
 	<meta name="twitter:card" content="summary_large_image" />
 	<meta name="twitter:title" content="Privacy Policy - ImageForge" />
-	<meta name="twitter:description" content="How ImageForge handles your data: your images are processed in your browser and never uploaded. No account, no tracking cookies." />
+	<meta name="twitter:description" content="ImageForge processes images in your browser. Optional Google Analytics loads only after consent; image files, canvas pixels and layers are never sent to GA4." />
 	<meta name="twitter:image" content="https://draw.digdevbox.com/images/preview.jpg" />
 
 	<!--
 		内联样式：_headers 的 CSP 放开 style-src 'unsafe-inline'，
-		但 script-src 没有 —— 这些页面里不能出现任何脚本标签或 on* 事件属性。
+		但 script-src 禁止内联脚本和 on* 事件属性；自托管的外部 analytics-consent.js 可以加载。
 	-->
 	<style>
 		:root { color-scheme: light dark; }
@@ -185,6 +185,11 @@
 					<td>IndexedDB or memory</td>
 					<td>So you can resume work after an accidental reload</td>
 				</tr>
+				<tr>
+					<td>Google Analytics consent choice</td>
+					<td>localStorage</td>
+					<td>Remember whether you accepted or rejected optional GA4 page-view measurement</td>
+				</tr>
 			</table>
 			<p>
 				All of it stays on your device. Clearing your browser data removes it permanently
@@ -196,9 +201,9 @@
 				<strong>ImageForge does not set any cookies of its own.</strong>
 			</p>
 			<p>
-				If advertising (Google AdSense) or analytics (Google Analytics) is enabled in the
-				future, those third parties may set their own cookies. This page will be updated
-				before that happens, and a notice will be shown on first visit.
+				Google AdSense may set advertising cookies as described below. Optional Google Analytics 4 (GA4)
+				may set analytics cookies only after you explicitly choose “Accept Google Analytics”.
+				If you reject, no GA4 request is sent. You can change your choice with “Privacy choices”.
 			</p>
 
 			<h2>4. Third-party services</h2>
@@ -216,10 +221,18 @@
 				<li>
 					<strong>Stock photo provider</strong> &mdash; only when you use the built-in search.
 				</li>
+				<li>
+					<strong>Google Analytics 4 (optional)</strong> &mdash; loaded only after explicit consent.
+					It receives page path, page title and referrer origin for page-view measurement. It does not
+					receive image files, filenames, canvas pixels, layer data or URL query parameters. If you
+					also consent on another DigDevBox subdomain, cross-subdomain linker parameters may connect
+					those consented visits. See the
+					<a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Privacy Policy</a>.
+				</li>
 			</ul>
 			<p>
-				The editor itself, all stylesheets and all scripts are self-hosted.
-				No third-party analytics or tracking script is loaded.
+				The editor engine, stylesheets and consent loader are self-hosted. The consent loader contacts
+				Google Analytics only after you opt in; rejecting GA4 prevents that request.
 			</p>
 
 			<h2>5. Advertising (Google AdSense)</h2>
