@@ -39,7 +39,7 @@ else {
     ['correct ImageForge Measurement ID', /G-5D1F8G3H6J/],
     ['site-scoped consent key', /imageforge\.ga4-consent\.v1/],
     ['analytics denied by default', /analytics_storage:\s*'denied'/],
-    ['explicit accept/reject choices', /Accept Google Analytics[\\s\\S]*Reject Google Analytics/],
+    ['explicit accept/reject choices', /Accept Google Analytics[\s\S]*Reject Google Analytics/],
     ['query string excluded', /location\.origin \+ location\.pathname/],
     ['noindex page view blocked', /isNoindexPage\(\)/],
     ['automatic page_view disabled', /send_page_view:\s*false/],
