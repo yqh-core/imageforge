@@ -49,6 +49,10 @@ else {
   for (const [name, pattern] of checks) if (!pattern.test(script)) failures.push('analytics-consent.js: ' + name);
 }
 
+const headers = fs.readFileSync(path.join(root, 'deploy/cloudflare/_headers'), 'utf8');
+if (!/script-src[^\\n]*www\\.googletagmanager\\.com/.test(headers)) failures.push('Cloudflare CSP: googletagmanager.com missing from script-src');
+if (!/connect-src[^\\n]*https:/.test(headers)) failures.push('Cloudflare CSP: HTTPS analytics endpoint missing from connect-src');
+
 const privacy = fs.readFileSync(path.join(root, 'privacy.html'), 'utf8');
 for (const term of ['Google Analytics 4 (optional)', 'Accept Google Analytics', 'no GA4 request is sent', 'image files', 'canvas pixels', 'cross-subdomain']) {
   if (!privacy.toLowerCase().includes(term.toLowerCase())) failures.push('privacy.html: missing disclosure ' + term);
