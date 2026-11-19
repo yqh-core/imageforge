@@ -126,7 +126,7 @@ jobs:
           if (missingNetworkLinks.length) {
             throw new Error('Product network links missing from homepage: ' + missingNetworkLinks.join(', '));
           }
-          if (/href=["']https:\/\/(?:fangdai|geek-typing)\.digdevbox\.com\\//i.test(home.body)) {
+          if (/href=["']https:\/\/(?:fangdai|geek-typing)\.digdevbox\.com\//i.test(home.body)) {
             throw new Error('Deferred China-only product link remains on the English product site');
           }
 
