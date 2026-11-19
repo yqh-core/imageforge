@@ -220,6 +220,10 @@ async function main() {
 	check('sitemap.xml lists the configured site',
 		sitemap.status === 200 && sitemap.body.indexOf(BRAND.site) !== -1,
 		'HTTP ' + sitemap.status + ' ' + BRAND.site);
+	// Do not stamp every URL with the deployment date: it is not each page's last significant modification.
+	// Reintroduce <lastmod> only when route-specific, verifiable content dates are available.
+	check('sitemap omits unverified build-time lastmod values', !/<lastmod>/i.test(sitemap.body),
+		'page-specific significant-update dates are not currently tracked');
 
 	let ldOk = false;
 	let ldDetail = '(no application/ld+json block found)';
