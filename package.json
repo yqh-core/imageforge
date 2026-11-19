@@ -28,6 +28,7 @@
     "icons": "node scripts/gen-icons.js",
     "preview": "node scripts/serve.js",
     "verify": "node tools/verify/verify.js",
+    "check:ga4-consent": "node scripts/check-ga4-consent.js",
     "probe": "node tools/verify/features.js"
   },
   "repository": {
