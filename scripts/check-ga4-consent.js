@@ -37,13 +37,13 @@ else {
   const script = fs.readFileSync(scriptPath, 'utf8');
   const checks = [
     ['correct ImageForge Measurement ID', /G-5D1F8G3H6J/],
-    ['site-scoped consent key', /imageforge\\.ga4-consent\\.v1/],
-    ['analytics denied by default', /analytics_storage:\\s*'denied'/],
+    ['site-scoped consent key', /imageforge\.ga4-consent\.v1/],
+    ['analytics denied by default', /analytics_storage:\s*'denied'/],
     ['explicit accept/reject choices', /Accept Google Analytics[\\s\\S]*Reject Google Analytics/],
-    ['query string excluded', /location\\.origin \\+ location\\.pathname/],
-    ['noindex page view blocked', /isNoindexPage\\(\\)/],
-    ['automatic page_view disabled', /send_page_view:\\s*false/],
-    ['cross-subdomain linker configured', /linker:\\s*\\{ domains: \\['digdevbox\\.com'\\] \\}/],
+    ['query string excluded', /location\.origin \+ location\.pathname/],
+    ['noindex page view blocked', /isNoindexPage\(\)/],
+    ['automatic page_view disabled', /send_page_view:\s*false/],
+    ['cross-subdomain linker configured', /linker:\s*\{ domains: \['digdevbox\.com'\] \}/],
     ['SPA duplicate suppression', /path === lastPage/],
   ];
   for (const [name, pattern] of checks) if (!pattern.test(script)) failures.push('analytics-consent.js: ' + name);
@@ -59,7 +59,7 @@ if (fs.existsSync(path.join(root, 'build')) && !fs.existsSync(packagedScript)) f
 if (fs.existsSync(path.join(root, 'build'))) checkHtml(path.join(root, 'build'), 'build');
 
 if (failures.length) {
-  console.error(failures.join('\\n'));
+  console.error(failures.join('\n'));
   process.exit(1);
 }
 console.log('[GA4 consent] PASS: public pages, package allowlist, correct stream ID, opt-in, safe URL and privacy disclosure');
