@@ -107,17 +107,29 @@ jobs:
           }
 
           const pages = ["/guides","/faq","/about","/contact","/privacy","/terms"];
-          const anchorHrefs = (body) => [...body.matchAll(/<a\\b[^>]*\\bhref=["']([^"']+)["'][^>]*>/gi)].map((match) => match[1]);
+          const anchorHrefs = (body) => {
+            const hrefs = [];
+            for (const tag of body.match(/<a[^>]*>/gi) || []) {
+              const marker = tag.toLowerCase().indexOf('href=');
+              if (marker < 0) continue;
+              const tail = tag.slice(marker + 5).trimStart();
+              const quote = tail[0];
+              if (quote !== '"' && quote !== "'") continue;
+              const finish = tail.indexOf(quote, 1);
+              if (finish > 0) hrefs.push(tail.slice(1, finish));
+            }
+            return hrefs;
+          };
           for (const path of pages) {
             const result = await get(path);
             if (!result.response.ok || !result.body.includes('rel="canonical"')) {
               throw new Error(`${path}: expected HTTP 200 and canonical metadata, got ${result.response.status}`);
             }
             const hrefs = anchorHrefs(result.body);
-            if (hrefs.some((url) => /^https:\\/\\/(?:fangdai|geek-typing)\\.digdevbox\\.com\\//i.test(url))) {
+            if (hrefs.some((url) => url.startsWith('https://fangdai.digdevbox.com/') || url.startsWith('https://geek-typing.digdevbox.com/'))) {
               throw new Error(path + ': deferred China-only anchor link remains on this English page');
             }
-            if (hrefs.some((url) => /^https:\\/\\/digdevbox\\.com\\//i.test(url))) {
+            if (hrefs.some((url) => url.startsWith('https://digdevbox.com/'))) {
               throw new Error(path + ': stale bare-domain anchor link remains');
             }
           }
