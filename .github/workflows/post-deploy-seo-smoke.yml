@@ -91,6 +91,23 @@ jobs:
           }
           if (!home) throw new Error('Production homepage did not expose expected SEO HTML within 5 minutes');
 
+          if (!home.body.includes('/analytics-consent.js')) throw new Error('Production homepage is missing the GA4 consent loader');
+          const gaScript = await get('/analytics-consent.js');
+          if (!gaScript.response.ok || !gaScript.body.includes('G-5D1F8G3H6J') ||
+              !gaScript.body.includes("analytics_storage: 'denied'") ||
+              !gaScript.body.includes('send_page_view: false') ||
+              !gaScript.body.includes('Reject Google Analytics')) {
+            throw new Error('Production ImageForge GA4 loader is missing, misconfigured or not consent-gated');
+          }
+          const privacyPage = await get('/privacy.html');
+          if (!privacyPage.response.ok || !privacyPage.body.includes('Google Analytics 4 (optional)') ||
+              !privacyPage.body.includes('Accept Google Analytics') ||
+              !privacyPage.body.includes('image files')) {
+            throw new Error('Production ImageForge privacy page is missing the GA4 disclosure');
+          }
+
+
+
           const robots = await get('/robots.txt');
           if (!robots.response.ok || !/Sitemap:\s*https:\/\//i.test(robots.body)) {
             throw new Error('robots.txt missing an absolute HTTPS Sitemap directive');
