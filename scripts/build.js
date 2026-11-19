@@ -101,6 +101,22 @@ async function main() {
 	console.log('\n[2/3] render pages from brand.config.json');
 	renderSite({ hash });
 
+	// HTML and editor modules reference /dist/images/* at runtime. Keep the
+	// deployable asset tree self-contained instead of relying on root-level
+	// images/ files that are outside that URL prefix.
+	const imageSource = path.join(ROOT, 'images');
+	const imageTarget = path.join(DIST, 'images');
+	fs.cpSync(imageSource, imageTarget, {
+		recursive: true,
+		filter: src => path.relative(imageSource, src) !== 'test-collection.json',
+	});
+	for (const required of ['logo.svg', 'icons/brush.svg', 'icons/select.svg']) {
+		if (!fs.existsSync(path.join(imageTarget, required))) {
+			throw new Error('Missing runtime image asset in dist/images: ' + required);
+		}
+	}
+	console.log('  copied runtime images to dist/images (test fixtures excluded)');
+
 	console.log('\n[3/3] pre-compress static assets');
 	const report = precompress();
 	report.forEach(r => {
