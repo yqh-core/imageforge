@@ -48,7 +48,7 @@ jobs:
         run: |
           node --input-type=module <<'NODE'
           import { readFileSync } from 'node:fs';
-          const html = readFileSync('dist/index.html', 'utf8');
+          const html = readFileSync('build/index.html', 'utf8');
           for (const needle of ['Free Online Photo &amp; Image Editor', 'Edit photos and images online', 'canonical']) {
             if (!html.includes(needle)) throw new Error('generated SEO metadata missing: ' + needle);
           }
