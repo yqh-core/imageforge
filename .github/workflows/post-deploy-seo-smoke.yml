@@ -107,16 +107,18 @@ jobs:
           }
 
           const pages = ["/guides","/faq","/about","/contact","/privacy","/terms"];
+          const anchorHrefs = (body) => [...body.matchAll(/<a\\b[^>]*\\bhref=["']([^"']+)["'][^>]*>/gi)].map((match) => match[1]);
           for (const path of pages) {
             const result = await get(path);
             if (!result.response.ok || !result.body.includes('rel="canonical"')) {
               throw new Error(`${path}: expected HTTP 200 and canonical metadata, got ${result.response.status}`);
             }
-            if (/href=["']https:\/\/(?:fangdai|geek-typing)\.digdevbox\.com\//i.test(result.body)) {
-              throw new Error(path + ': deferred China-only product link remains on this English page');
+            const hrefs = anchorHrefs(result.body);
+            if (hrefs.some((url) => /^https:\\/\\/(?:fangdai|geek-typing)\\.digdevbox\\.com\\//i.test(url))) {
+              throw new Error(path + ': deferred China-only anchor link remains on this English page');
             }
-            if (result.body.includes('href="https://digdevbox.com/')) {
-              throw new Error(path + ': stale bare-domain internal link remains');
+            if (hrefs.some((url) => /^https:\\/\\/digdevbox\\.com\\//i.test(url))) {
+              throw new Error(path + ': stale bare-domain anchor link remains');
             }
           }
 
