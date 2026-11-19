@@ -1,0 +1,41 @@
+name: Build and verify
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: imageforge-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build Cloudflare-ready site
+        run: npm run build
+      - name: Verify generated site
+        run: npm run verify
+      - name: Check SEO metadata in generated HTML
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const html = readFileSync('dist/index.html', 'utf8');
+          for (const needle of ['Free Online Photo &amp; Image Editor', 'Edit photos and images online', 'canonical']) {
+            if (!html.includes(needle)) throw new Error('generated SEO metadata missing: ' + needle);
+          }
+          console.log('ImageForge SEO metadata PASS');
+          NODE
