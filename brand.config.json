@@ -1,40 +1,42 @@
 {
-	"name": "ImageForge",
-	"shortName": "ImageForge",
-	"tagline": "Free online image editor",
-	"description": "ImageForge is a free online image editor that runs entirely in your browser. Open, retouch, layer, filter and export images without uploading anything to a server.",
-	"shortDescription": "Free browser-based image editor with layers, filters and brushes.",
-	"author": "ImageForge",
-	"email": {
-		"user": "yqhgry",
-		"domain": "gmail.com"
-	},
-	"site": "https://draw.digdevbox.com",
-	"network": "https://digdevbox.com",
-	"repository": "https://github.com/yqh-core/imageforge",
-	"issues": "https://digdevbox.com/contact",
-	"locale": "en",
-	"themeColor": "#0f766e",
-	"backgroundColor": "#666d6f",
-	"keywords": [
-		"photo editor",
-		"image editor",
-		"online photoshop",
-		"layers",
-		"filters",
-		"canvas",
-		"html5",
-		"free",
-		"browser"
-	],
-	"upstream": {
-		"name": "miniPaint",
-		"url": "https://github.com/viliusle/miniPaint",
-		"license": "MIT",
-		"note": "Built on miniPaint"
-	},
-	"services": {
-		"pixabayKey": "",
-		"googleFontsKey": ""
-	}
+  "name": "ImageForge",
+  "shortName": "ImageForge",
+  "tagline": "Free Online Photo & Image Editor",
+  "description": "Edit photos and images online with layers, selections, brushes, text, filters and adjustments. ImageForge runs in your browser, so image editing stays on your device instead of being uploaded to an ImageForge processing server.",
+  "shortDescription": "Free browser-based photo editor with layers, selections, brushes and filters.",
+  "author": "ImageForge",
+  "email": {
+    "user": "yqhgry",
+    "domain": "gmail.com"
+  },
+  "site": "https://draw.digdevbox.com",
+  "network": "https://digdevbox.com",
+  "repository": "https://github.com/yqh-core/imageforge",
+  "issues": "https://digdevbox.com/contact",
+  "locale": "en",
+  "themeColor": "#0f766e",
+  "backgroundColor": "#666d6f",
+  "keywords": [
+    "free online image editor",
+    "online photo editor",
+    "browser image editor",
+    "photo retouching",
+    "layers",
+    "selections",
+    "brush tools",
+    "image filters",
+    "image adjustments",
+    "no upload image editor",
+    "HTML5 canvas"
+  ],
+  "upstream": {
+    "name": "miniPaint",
+    "url": "https://github.com/viliusle/miniPaint",
+    "license": "MIT",
+    "note": "Built on miniPaint"
+  },
+  "services": {
+    "pixabayKey": "",
+    "googleFontsKey": ""
+  }
 }
