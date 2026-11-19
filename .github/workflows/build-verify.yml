@@ -1,0 +1,56 @@
+name: Build and verify
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: imageforge-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build and package Cloudflare-ready site
+        run: npm run ship:cloudflare
+      - name: Start production-equivalent preview server
+        run: |
+          set -euo pipefail
+          node scripts/serve.js 4173 > /tmp/imageforge-preview.log 2>&1 &
+          echo $! > /tmp/imageforge-preview.pid
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then
+              echo "Preview server ready on port 4173"
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/imageforge-preview.log
+          echo "Preview server did not become ready"
+          exit 1
+      - name: Verify generated site
+        run: npm run verify
+      - name: Check SEO metadata in generated HTML
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const html = readFileSync('build/index.html', 'utf8');
+          for (const needle of ['Free Online Photo & Image Editor', 'Edit photos and images online', 'canonical']) {
+            if (!html.includes(needle)) throw new Error('generated SEO metadata missing: ' + needle);
+          }
+          console.log('ImageForge SEO metadata PASS');
+          NODE
