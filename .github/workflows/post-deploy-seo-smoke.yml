@@ -114,5 +114,21 @@ jobs:
             }
           }
 
-          console.log('PASS: homepage, robots.txt, sitemap.xml and selected static routes are live and crawlable');
+          const networkLinks = [
+            'https://www.digdevbox.com/',
+            'https://img.digdevbox.com/',
+            'https://ip.digdevbox.com/',
+            'https://play.digdevbox.com/',
+            'https://ttsreader.digdevbox.com/',
+            'https://notes.digdevbox.com/',
+          ];
+          const missingNetworkLinks = networkLinks.filter((url) => !home.body.includes(url));
+          if (missingNetworkLinks.length) {
+            throw new Error('Product network links missing from homepage: ' + missingNetworkLinks.join(', '));
+          }
+          if (/href=["']https:\/\/(?:fangdai|geek-typing)\\.digdevbox\\.com\\//i.test(home.body)) {
+            throw new Error('Deferred China-only product link remains on the English product site');
+          }
+
+          console.log('PASS: homepage, product network links, robots.txt, sitemap.xml and selected static routes are live and crawlable');
           NODE
