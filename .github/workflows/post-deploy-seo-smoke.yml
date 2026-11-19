@@ -106,11 +106,17 @@ jobs:
             if (!sitemap.body.includes(url)) throw new Error('sitemap missing ' + url);
           }
 
-          const pages = ["/guides","/faq","/privacy"];
+          const pages = ["/guides","/faq","/about","/contact","/privacy","/terms"];
           for (const path of pages) {
             const result = await get(path);
             if (!result.response.ok || !result.body.includes('rel="canonical"')) {
               throw new Error(`${path}: expected HTTP 200 and canonical metadata, got ${result.response.status}`);
+            }
+            if (/href=["']https:\/\/(?:fangdai|geek-typing)\.digdevbox\.com\//i.test(result.body)) {
+              throw new Error(path + ': deferred China-only product link remains on this English page');
+            }
+            if (result.body.includes('href="https://digdevbox.com/')) {
+              throw new Error(path + ': stale bare-domain internal link remains');
             }
           }
 
