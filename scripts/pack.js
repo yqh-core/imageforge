@@ -82,6 +82,7 @@ function kb(bytes) {
 const ROOT_FILES = [
 	'index.html',
 	'404.html',
+	'analytics-consent.js',
 	'service-worker.js',
 	'favicon.ico',
 	'manifest.webmanifest',
