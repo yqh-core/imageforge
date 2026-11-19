@@ -1,0 +1,80 @@
+name: Post-deploy SEO smoke
+
+on:
+  workflow_run:
+    workflows: ["Build and verify"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  production-smoke:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Wait for Cloudflare Git deployment and verify crawler-facing pages
+        env:
+          SITE_ORIGIN: "https://draw.digdevbox.com"
+          EXPECTED_TITLE: "ImageForge - Free Online Photo & Image Editor"
+        run: |
+          node --input-type=module <<'NODE'
+          const origin = process.env.SITE_ORIGIN;
+          const expectedTitle = process.env.EXPECTED_TITLE;
+          const ua = 'Googlebot/2.1 (+http://www.google.com/bot.html)';
+          const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+          async function get(path) {
+            const response = await fetch(origin + path, {
+              redirect: 'follow',
+              headers: { 'user-agent': ua, 'cache-control': 'no-cache' },
+            });
+            return { response, body: await response.text() };
+          }
+
+          let home = null;
+          for (let attempt = 1; attempt <= 20; attempt++) {
+            try {
+              const result = await get('/');
+              if (result.response.ok && result.body.includes(expectedTitle) && result.body.includes('rel="canonical"')) {
+                home = result;
+                console.log(`Production homepage ready (attempt ${attempt})`);
+                break;
+              }
+              console.log(`Waiting for deployment (${attempt}/20): HTTP ${result.response.status}`);
+            } catch (error) {
+              console.log(`Waiting for origin (${attempt}/20): ${error.message}`);
+            }
+            await sleep(15000);
+          }
+          if (!home) throw new Error('Production homepage did not expose expected SEO HTML within 5 minutes');
+
+          const robots = await get('/robots.txt');
+          if (!robots.response.ok || !/Sitemap:\s*https:\/\//i.test(robots.body)) {
+            throw new Error('robots.txt missing an absolute HTTPS Sitemap directive');
+          }
+          const sitemap = await get('/sitemap.xml');
+          if (!sitemap.response.ok || !sitemap.body.includes('<urlset')) {
+            throw new Error('sitemap.xml did not return a valid URL set');
+          }
+
+          const expectedRoutes = ["/","/guides","/faq","/about","/contact","/privacy","/terms"];
+          for (const route of expectedRoutes) {
+            const url = origin + (route === '/' ? '/' : route);
+            if (!sitemap.body.includes(url)) throw new Error('sitemap missing ' + url);
+          }
+
+          const pages = ["/guides","/faq","/privacy"];
+          for (const path of pages) {
+            const result = await get(path);
+            if (!result.response.ok || !result.body.includes('rel="canonical"')) {
+              throw new Error(`${path}: expected HTTP 200 and canonical metadata, got ${result.response.status}`);
+            }
+          }
+
+          console.log('PASS: homepage, robots.txt, sitemap.xml and selected static routes are live and crawlable');
+          NODE
