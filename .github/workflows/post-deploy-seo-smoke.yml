@@ -90,6 +90,12 @@ jobs:
             await sleep(15000);
           }
           if (!home) throw new Error('Production homepage did not expose expected SEO HTML within 5 minutes');
+          if (!home.body.includes('<main id="main-content">') || !home.body.includes('</main>')) {
+            throw new Error('Production ImageForge homepage is missing its main landmark');
+          }
+          if (!home.body.includes('ImageForge - Free Online Photo & Image Editor</h1>')) {
+            throw new Error('Production ImageForge homepage is missing its visible-to-crawlers H1');
+          }
 
           if (!home.body.includes('/analytics-consent.js')) throw new Error('Production homepage is missing the GA4 consent loader');
           const gaScript = await get('/analytics-consent.js');
