@@ -90,6 +90,12 @@ jobs:
             await sleep(15000);
           }
           if (!home) throw new Error('Production homepage did not expose expected SEO HTML within 5 minutes');
+          if (!home.body.includes('<link rel="canonical" href="' + origin + '/"')) {
+            throw new Error('Production homepage canonical must exactly match the trailing-slash sitemap root URL');
+          }
+          if (!home.body.includes('<meta property="og:url" content="' + origin + '/"')) {
+            throw new Error('Production homepage og:url must match its canonical root URL');
+          }
           if (!home.body.includes('<main id="main-content">') || !home.body.includes('</main>')) {
             throw new Error('Production ImageForge homepage is missing its main landmark');
           }
