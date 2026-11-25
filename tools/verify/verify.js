@@ -359,6 +359,8 @@ async function main() {
 	// cookies, request bodies or arbitrary user stream/image URLs.
 	const indexJsTrace = [];
 	const indexJsTraceById = new Map();
+	const gifWorkerTrace = [];
+	const gifWorkerTraceById = new Map();
 	const sanitizeTraceUrl = value => {
 		try {
 			const u = new URL(value);
@@ -418,7 +420,9 @@ async function main() {
 			const rawUrl = p.request && p.request.url;
 			let parsedUrl = null;
 			try { parsedUrl = new URL(rawUrl); } catch (e) { /* non-URL request */ }
-			if (parsedUrl && parsedUrl.pathname === '/index.js') {
+			if (parsedUrl && (parsedUrl.pathname === '/index.js'
+				|| parsedUrl.pathname.endsWith('/src/js/libs/gifjs/gif.worker.js'))) {
+				const isIndex = parsedUrl.pathname === '/index.js';
 				const initiator = p.initiator || {};
 				const record = {
 					requestId: p.requestId,
@@ -440,15 +444,20 @@ async function main() {
 					response: null,
 					loadingFailure: null,
 				};
-				indexJsTrace.push(record);
-				indexJsTraceById.set(p.requestId, record);
+				if (isIndex) {
+					indexJsTrace.push(record);
+					indexJsTraceById.set(p.requestId, record);
+				} else {
+					gifWorkerTrace.push(record);
+					gifWorkerTraceById.set(p.requestId, record);
+				}
 			}
 		}
 		if (msg.method === 'Network.responseReceived') {
 			const p = msg.params;
 			const r = p.response;
 			if (r.status >= 400) requests.push(r.status + ' ' + r.url);
-			const trace = indexJsTraceById.get(p.requestId);
+			const trace = indexJsTraceById.get(p.requestId) || gifWorkerTraceById.get(p.requestId);
 			if (trace) {
 				trace.response = {
 					status: r.status,
@@ -461,7 +470,7 @@ async function main() {
 			}
 		}
 		if (msg.method === 'Network.loadingFailed') {
-			const trace = indexJsTraceById.get(msg.params.requestId);
+			const trace = indexJsTraceById.get(msg.params.requestId) || gifWorkerTraceById.get(msg.params.requestId);
 			if (trace) {
 				trace.loadingFailure = {
 					errorText: msg.params.errorText || '',
@@ -535,15 +544,43 @@ async function main() {
 			if (ready) break;
 			await sleep(500);
 		}
+		// Exercise the existing GIF export flow with two tiny in-memory frames.
+		// This is a disposable browser profile; no user file or persistent storage is used.
+		const exportProbe = JSON.parse(await evaluate(`(function(){
+			try {
+				if (!window.FileOpen || !window.FileSave || !window.AppConfig) {
+					return JSON.stringify({ready:false, reason:'editor file APIs are not available'});
+				}
+				const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAG0lEQVQYV2N89+7df0FBQQbG/////3///j0DAF9wCsg9spQfAAAAAElFTkSuQmCC';
+				const before = window.AppConfig.layers.length;
+				window.FileOpen.on_paste(png, 2, 2);
+				window.FileOpen.on_paste(png, 2, 2);
+				const after = window.AppConfig.layers.length;
+				window.FileSave.save_action({
+					name: 'indexjs-initiator-trace.gif',
+					type: 'GIF - Graphics Interchange Format',
+					quality: 90,
+					delay: 100,
+					layers: 'All',
+				});
+				return JSON.stringify({ready:true, layersBefore:before, layersAfter:after, exportStarted:true});
+			} catch (error) {
+				return JSON.stringify({ready:false, reason:error && error.message ? error.message : String(error)});
+			}
+		})()`));
+		console.log('GIF export probe: ' + JSON.stringify(exportProbe));
 		const waitMs = Math.max(1000, Math.min(30000, Number(process.env.TRACE_WAIT_MS || 10000)));
-		console.log('Waiting ' + waitMs + 'ms for deferred /index.js requests');
+		console.log('Waiting ' + waitMs + 'ms for /index.js and GIF-worker requests');
 		await sleep(waitMs);
 		const report = {
 			base: sanitizeTraceUrl(BASE),
 			capturedAt: new Date().toISOString(),
 			waitMs,
+			exportProbe,
 			requestCount: indexJsTrace.length,
 			requests: indexJsTrace,
+			gifWorkerRequestCount: gifWorkerTrace.length,
+			gifWorkerRequests: gifWorkerTrace,
 			privacy: 'Query strings, headers, cookies, request bodies and unrelated URLs are not recorded.',
 		};
 		const tracePath = path.join(OUT, 'indexjs-network-trace.json');
@@ -551,7 +588,7 @@ async function main() {
 		console.log(JSON.stringify(report, null, 2));
 		await teardown();
 		if (!indexJsTrace.length) {
-			console.error('No /index.js request was observed during the diagnostic window.');
+			console.error('No /index.js request was observed during homepage load or the GIF export probe.');
 			process.exitCode = 2;
 		} else {
 			console.log('Captured ' + indexJsTrace.length + ' /index.js request(s) to ' + tracePath);
