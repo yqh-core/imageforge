@@ -298,10 +298,14 @@ async function main() {
 	check('service worker cache name carries the bundle fingerprint',
 		!!bundleRef && sw.body.indexOf("const VERSION = '" + bundleRef + "'") !== -1,
 		'VERSION = ' + bundleRef);
-	// 给了长缓存，发版后用户可能几十小时拿不到新版本
-	check('service-worker.js is not long-cached',
-		/no-cache|max-age=0/.test(sw.headers.get('cache-control') || ''),
-		sw.headers.get('cache-control'));
+	// This must be exactly one max-age=0 directive. A substring check would
+	// incorrectly pass conflicting values such as "max-age=3600, max-age=0".
+	const swCacheControl = sw.headers.get('cache-control') || '';
+	const swMaxAges = Array.from(swCacheControl.matchAll(/(?:^|,)\s*max-age\s*=\s*(\d+)/gi), m => m[1]);
+	check('service-worker.js has one immediate-revalidation cache policy',
+		swMaxAges.length === 1 && swMaxAges[0] === '0'
+			&& /(?:^|,)\s*must-revalidate(?:,|$)/i.test(swCacheControl),
+		swCacheControl);
 
 	// ---------- 渲染层：Chrome ----------
 	// 本地预览时绕开代理（有些环境把 loopback 也塞进代理，会连不上）；
