@@ -245,6 +245,16 @@ async function main() {
 	const bundleBody = bundle.body || '';
 	check('bundle.js delivered as readable JS',
 		bundleBody.indexOf(BRAND.name) !== -1, bundleBody.length + ' bytes');
+
+	// GIF export creates a classic Worker at runtime; verify the exact deploy URL,
+	// not just that the encoder bundle contains a workerScript string.
+	const gifWorker = await http(BASE + '/src/js/libs/gifjs/gif.worker.js');
+	const gifWorkerType = gifWorker.headers.get('content-type') || '';
+	check('GIF encoder worker is shipped and served as JavaScript',
+		gifWorker.status === 200
+			&& /javascript|ecmascript/.test(gifWorkerType)
+			&& (gifWorker.body || '').includes('self.onmessage'),
+		'HTTP ' + gifWorker.status + ' / ' + gifWorkerType + ' / ' + (gifWorker.body || '').length + ' bytes');
 	// 邮箱在配置里是拆开存的，完整地址只应在运行时拼出来，不该出现在静态文本里
 	check('no plaintext contact email in shipped HTML',
 		!BRAND_EMAIL || idx.body.indexOf(BRAND_EMAIL) === -1, BRAND_EMAIL || '(none configured)');
@@ -464,6 +474,29 @@ async function main() {
 		return !!c && c.width > 100 && c.height > 100;
 	})()`);
 	check('editor canvas mounted and sized', !!canvasOk);
+
+	const gifWorkerBoot = await evaluate(`(async function(){
+		return await new Promise(resolve => {
+			let worker;
+			let settled = false;
+			const finish = value => {
+				if (settled) return;
+				settled = true;
+				if (worker) worker.terminate();
+				resolve(value);
+			};
+			try {
+				worker = new Worker('/src/js/libs/gifjs/gif.worker.js');
+			} catch (error) {
+				finish('create failed: ' + error.message);
+				return;
+			}
+			worker.onerror = event => finish('worker error: ' + (event.message || 'unknown'));
+			setTimeout(() => finish('loaded'), 500);
+		});
+	})()`);
+	check('GIF encoder worker starts in the real browser without CSP/runtime errors',
+		gifWorkerBoot === 'loaded', String(gifWorkerBoot));
 
 	const welcomeState = JSON.parse(await evaluate(`(function(){
 		var welcome = document.getElementById('imageforge-welcome');

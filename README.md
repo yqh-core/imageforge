@@ -162,13 +162,13 @@ npm run ship
 # 然后把 build/ 里的全部内容拷到站点根目录 / 传上对象存储 / 交给托管平台
 ```
 
-`build/` 是白名单产物，只有上线真正需要的文件（约 1.3–1.8 MB），`src/`、`scripts/`、
-`node_modules/`、`vendor/`、`package.json` 都不会跟着上线。
+`build/` 是白名单产物，只有上线真正需要的文件（约 1.3–1.8 MB）；除 GIF 导出必需的
+`src/js/libs/gifjs/gif.worker.js` 外，`src/`、`scripts/`、`node_modules/`、`vendor/`、`package.json` 都不会跟着上线。
 `release/imageforge-site-*.zip` 是同一份内容的压缩包，方便直接上传或分发。
 
 > **不要上传工程根目录。** 本机实测根目录共 15,967 个文件（`node_modules/` 占 15,599），
 > 而 Cloudflare Pages 控制台拖拽上传的上限是 **1,000 个文件**，必然失败。
-> 要上传的永远是 `build/`：按 Cloudflare 目标打包后是 **53 个文件**。
+> 要上传的永远是 `build/`：按 Cloudflare 目标打包后是 **54 个文件**。
 
 ### Cloudflare Pages（Git 集成，推荐）
 

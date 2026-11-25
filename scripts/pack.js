@@ -101,6 +101,8 @@ const ROOT_FILES = [
 	'guides.html',
 	// AdSense 账户校验文件（域名根，必填）
 	'ads.txt',
+	// GIF encoder worker referenced by the runtime bundle; keep the source-relative URL deployable.
+	'src/js/libs/gifjs/gif.worker.js',
 ];
 // css：dd-tokens/dd-shell（P2 点缀方案 2026-10-13）——index.html 同步 link 引用，必须上线。
 const COPY_DIRS = ['dist', 'images', 'css'];
@@ -141,6 +143,32 @@ function checkReferences(files, errors) {
 	if (fs.existsSync(manifestPath)) {
 		const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 		for (const icon of manifest.icons || []) localRefs.push(icon.src);
+	}
+
+	// Runtime-created Worker URLs are not visible in index.html's href/src attributes.
+	// Inspect the compiled bundle so an omitted worker cannot silently ship as a 404.
+	const bundlePath = path.join(ROOT, 'dist', 'bundle.js');
+	if (fs.existsSync(bundlePath)) {
+		const bundle = fs.readFileSync(bundlePath, 'utf8');
+		const workerRefs = Array.from(bundle.matchAll(/workerScript\s*:\s*["']([^"']+)["']/g), match => match[1]);
+		const expectedGifWorker = './src/js/libs/gifjs/gif.worker.js';
+		if (!workerRefs.includes(expectedGifWorker)) {
+			errors.push(expectedGifWorker + '  (explicit GIF Worker reference is missing from dist/bundle.js)');
+		}
+		// gif.js.optimized also embeds the unused default path "gif.worker.js";
+		// the application overrides it with expectedGifWorker at every export call.
+		for (const ref of workerRefs.filter(value => value !== 'gif.worker.js')) {
+			if (/^https?:|^blob:|^data:/.test(ref)) continue;
+			let rel = ref.split('?')[0].split('#')[0];
+			if (rel.startsWith('./')) rel = rel.slice(2);
+			else if (rel.startsWith('/')) rel = rel.slice(1);
+			if (!rel) continue;
+			if (!fs.existsSync(path.join(ROOT, rel))) {
+				errors.push(ref + '  (Worker URL in dist/bundle.js points to a missing file)');
+			} else if (!files.includes(rel)) {
+				errors.push(ref + '  (Worker URL exists but is absent from the production pack allowlist)');
+			}
+		}
 	}
 
 	for (const ref of new Set(localRefs)) {
