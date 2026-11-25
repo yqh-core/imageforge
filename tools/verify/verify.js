@@ -514,6 +514,11 @@ async function main() {
 	check('welcome CTA is connected to the existing local file-open action',
 		welcomeState.button && await evaluate(`typeof window.FileOpen === 'object' && typeof window.FileOpen.open_file === 'function'`),
 		'FileOpen.open_file available');
+	const clipboardHint = await evaluate(`(function(){
+		var hint = document.querySelector('.if-welcome-paste');
+		return !!hint && /Ctrl/.test(hint.textContent) && /⌘/.test(hint.textContent) && /paste/i.test(hint.textContent);
+	})()`);
+	check('welcome explains the existing Ctrl/Command+V clipboard import path', clipboardHint);
 
 	// Also check the welcome is bounded at a phone width; the app keeps its editor
 	// shell, while this first-use card should collapse into a single-column action.
@@ -533,6 +538,35 @@ async function main() {
 		mobileWelcome.visible && mobileWelcome.buttonVisible && mobileWelcome.withinWorkspace,
 		JSON.stringify(mobileWelcome));
 	await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+	// Exercise the real document-level paste handler with an in-memory PNG clipboard item.
+	// This proves the new first-use instruction maps to a working import path, not just copy.
+	const clipboardImport = JSON.parse(await evaluate(`(async function(){
+		var welcome = document.getElementById('imageforge-welcome');
+		var before = document.querySelectorAll('#layers > .item').length;
+		var pngUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAG0lEQVQYV2N89+7df0FBQQbG/////3///j0DAF9wCsg9spQfAAAAAElFTkSuQmCC';
+		try {
+			var blob = await (await fetch(pngUrl)).blob();
+			var file = new File([blob], 'clipboard-probe.png', { type: 'image/png' });
+			var transfer = new DataTransfer();
+			transfer.items.add(file);
+			var event = new ClipboardEvent('paste', { clipboardData: transfer, bubbles: true, cancelable: true });
+			document.dispatchEvent(event);
+			await new Promise(resolve => setTimeout(resolve, 800));
+			return JSON.stringify({
+				clipboardAvailable: !!event.clipboardData && event.clipboardData.items.length === 1,
+				defaultPrevented: event.defaultPrevented,
+				welcomeHidden: !!welcome && welcome.hidden,
+				before: before,
+				after: document.querySelectorAll('#layers > .item').length,
+			});
+		} catch (error) {
+			return JSON.stringify({ error: error.message });
+		}
+	})()`));
+	check('Ctrl/Command+V clipboard paste imports an image and dismisses welcome',
+		clipboardImport.clipboardAvailable && clipboardImport.defaultPrevented && clipboardImport.welcomeHidden
+			&& clipboardImport.after === clipboardImport.before + 1,
+		JSON.stringify(clipboardImport));
 
 	const menuCount = await evaluate('document.querySelectorAll("#main_menu a").length');
 	check('main menu bar rendered', menuCount > 5, 'items: ' + menuCount);
