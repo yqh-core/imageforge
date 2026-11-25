@@ -105,11 +105,22 @@ const HEADER_RULES = loadHeaderRules();
  * separator"），而不是后者覆盖前者 —— 本地行为要和线上完全一致才有验收意义。
  */
 function applyHeaderRules(headers, reqPath) {
+	// Explicit _headers rules replace the preview server's generic defaults.
+	// Only duplicate declarations inside the matched _headers rules are joined,
+	// matching Cloudflare Pages semantics without creating conflicting directives
+	// such as "max-age=3600, max-age=0".
+	const configured = new Map();
 	for (const rule of HEADER_RULES) {
 		if (!matchRule(rule.pattern, reqPath)) continue;
 		for (const [name, value] of rule.headers) {
-			headers[name] = headers[name] ? headers[name] + ', ' + value : value;
+			const key = name.toLowerCase();
+			const existing = configured.get(key);
+			if (existing) existing.value += ', ' + value;
+			else configured.set(key, { name, value });
 		}
+	}
+	for (const { name, value } of configured.values()) {
+		headers[name] = value;
 	}
 	return headers;
 }
