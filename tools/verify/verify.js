@@ -547,16 +547,33 @@ async function main() {
 		}
 		// Exercise the existing GIF export flow with two tiny in-memory frames.
 		// This is a disposable browser profile; no user file or persistent storage is used.
-		const exportProbe = JSON.parse(await evaluate(`(function(){
+		const exportProbe = JSON.parse(await evaluate(`(async function(){
 			try {
-				if (!window.FileOpen || !window.FileSave || !window.AppConfig) {
-					return JSON.stringify({ready:false, reason:'editor file APIs are not available'});
+				if (!window.FileOpen || !window.FileSave || !window.AppConfig || !Array.isArray(window.AppConfig.layers)) {
+					return JSON.stringify({ready:false, reason:'editor file APIs or layer model are not available'});
 				}
 				const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAG0lEQVQYV2N89+7df0FBQQbG/////3///j0DAF9wCsg9spQfAAAAAElFTkSuQmCC';
+				const waitFor = async predicate => {
+					const deadline = Date.now() + 6000;
+					while (Date.now() < deadline) {
+						if (predicate()) return true;
+						await new Promise(resolve => setTimeout(resolve, 100));
+					}
+					return !!predicate();
+				};
 				const before = window.AppConfig.layers.length;
 				window.FileOpen.on_paste(png, 2, 2);
+				const firstReady = await waitFor(() => window.AppConfig.layers.some(layer => layer.type === 'image'));
+				if (!firstReady) {
+					return JSON.stringify({ready:false, reason:'first synthetic image layer was not inserted', layersBefore:before, layersAfterFirst:window.AppConfig.layers.length});
+				}
 				window.FileOpen.on_paste(png, 2, 2);
+				const twoReady = await waitFor(() => window.AppConfig.layers.filter(layer => layer.type === 'image').length >= 2);
 				const after = window.AppConfig.layers.length;
+				const imageLayers = window.AppConfig.layers.filter(layer => layer.type === 'image').length;
+				if (!twoReady) {
+					return JSON.stringify({ready:false, reason:'two synthetic image layers were not inserted', layersBefore:before, layersAfter:after, imageLayers});
+				}
 				window.FileSave.save_action({
 					name: 'indexjs-initiator-trace.gif',
 					type: 'GIF - Graphics Interchange Format',
@@ -564,7 +581,7 @@ async function main() {
 					delay: 100,
 					layers: 'All',
 				});
-				return JSON.stringify({ready:true, layersBefore:before, layersAfter:after, exportStarted:true});
+				return JSON.stringify({ready:true, layersBefore:before, layersAfter:after, imageLayers, exportStarted:true});
 			} catch (error) {
 				return JSON.stringify({ready:false, reason:error && error.message ? error.message : String(error)});
 			}
