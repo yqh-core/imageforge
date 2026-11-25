@@ -101,6 +101,8 @@ const ROOT_FILES = [
 	'guides.html',
 	// AdSense 账户校验文件（域名根，必填）
 	'ads.txt',
+	// GIF encoder worker referenced by the runtime bundle; keep the source-relative URL deployable.
+	'src/js/libs/gifjs/gif.worker.js',
 ];
 // css：dd-tokens/dd-shell（P2 点缀方案 2026-10-13）——index.html 同步 link 引用，必须上线。
 const COPY_DIRS = ['dist', 'images', 'css'];
@@ -141,6 +143,24 @@ function checkReferences(files, errors) {
 	if (fs.existsSync(manifestPath)) {
 		const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 		for (const icon of manifest.icons || []) localRefs.push(icon.src);
+	}
+
+	// Runtime-created Worker URLs are not visible in index.html's href/src attributes.
+	// Inspect the compiled bundle so an omitted worker cannot silently ship as a 404.
+	const bundlePath = path.join(ROOT, 'dist', 'bundle.js');
+	if (fs.existsSync(bundlePath)) {
+		const bundle = fs.readFileSync(bundlePath, 'utf8');
+		for (const match of bundle.matchAll(/workerScript\\s*:\\s*["']([^"']+)["']/g)) {
+			const ref = match[1];
+			if (/^https?:|^blob:|^data:/.test(ref)) continue;
+			const rel = ref.split('?')[0].split('#')[0].replace(/^\\.\\//, '').replace(/^\\//, '');
+			if (!rel) continue;
+			if (!fs.existsSync(path.join(ROOT, rel))) {
+				errors.push(ref + '  (Worker URL in dist/bundle.js points to a missing file)');
+			} else if (!files.includes(rel)) {
+				errors.push(ref + '  (Worker URL exists but is absent from the production pack allowlist)');
+			}
+		}
 	}
 
 	for (const ref of new Set(localRefs)) {
