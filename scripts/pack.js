@@ -151,7 +151,7 @@ function checkReferences(files, errors) {
 	if (fs.existsSync(bundlePath)) {
 		const bundle = fs.readFileSync(bundlePath, 'utf8');
 		const workerRefs = Array.from(bundle.matchAll(/workerScript\s*:\s*["']([^"']+)["']/g), match => match[1]);
-		const expectedGifWorker = './src/js/libs/gifjs/gif.worker.js';
+		const expectedGifWorker = './src/js/libs/gifjs/gif.worker.js?v=gif-worker-20261125-1';
 		if (!workerRefs.includes(expectedGifWorker)) {
 			errors.push(expectedGifWorker + '  (explicit GIF Worker reference is missing from dist/bundle.js)');
 		}

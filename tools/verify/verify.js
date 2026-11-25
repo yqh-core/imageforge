@@ -248,7 +248,7 @@ async function main() {
 
 	// GIF export creates a classic Worker at runtime; verify the exact deploy URL,
 	// not just that the encoder bundle contains a workerScript string.
-	const gifWorker = await http(BASE + '/src/js/libs/gifjs/gif.worker.js');
+	const gifWorker = await http(BASE + '/src/js/libs/gifjs/gif.worker.js?v=gif-worker-20261125-1');
 	const gifWorkerType = gifWorker.headers.get('content-type') || '';
 	check('GIF encoder worker is shipped and served as JavaScript',
 		gifWorker.status === 200
@@ -486,7 +486,7 @@ async function main() {
 				resolve(value);
 			};
 			try {
-				worker = new Worker('/src/js/libs/gifjs/gif.worker.js');
+				worker = new Worker('/src/js/libs/gifjs/gif.worker.js?v=gif-worker-20261125-1');
 			} catch (error) {
 				finish('create failed: ' + error.message);
 				return;

@@ -43,7 +43,7 @@ const PRECACHE = [
 	'./images/logo.svg',
 	'./dist/bundle.js?v={{BUILD_HASH}}',
 	// GIF export creates this worker on demand; precache it so the editor remains usable offline.
-	'./src/js/libs/gifjs/gif.worker.js',
+	'./src/js/libs/gifjs/gif.worker.js?v=gif-worker-20261125-1',
 ];
 
 self.addEventListener('install', (event) => {
