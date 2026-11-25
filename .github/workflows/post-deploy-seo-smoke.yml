@@ -120,6 +120,13 @@ jobs:
 
 
 
+          const gifWorker = await get('/src/js/libs/gifjs/gif.worker.js?v=gif-worker-20261125-1');
+          const gifWorkerType = gifWorker.response.headers.get('content-type') || '';
+          if (!gifWorker.response.ok || !/javascript|ecmascript/.test(gifWorkerType) || !gifWorker.body.includes('self.onmessage')) {
+            throw new Error('Production GIF worker is missing or not served as JavaScript: HTTP ' + gifWorker.response.status + ' / ' + gifWorkerType);
+          }
+          console.log('PASS: versioned GIF encoder worker is served from production');
+
           const robots = await get('/robots.txt');
           if (!robots.response.ok || !/Sitemap:\s*https:\/\//i.test(robots.body)) {
             throw new Error('robots.txt missing an absolute HTTPS Sitemap directive');
