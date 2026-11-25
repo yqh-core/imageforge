@@ -150,7 +150,7 @@ function checkReferences(files, errors) {
 	const bundlePath = path.join(ROOT, 'dist', 'bundle.js');
 	if (fs.existsSync(bundlePath)) {
 		const bundle = fs.readFileSync(bundlePath, 'utf8');
-		for (const match of bundle.matchAll(/workerScript\\s*:\\s*["']([^"']+)["']/g)) {
+		for (const match of bundle.matchAll(/workerScript\s*:\s*["']([^"']+)["']/g)) {
 			const ref = match[1];
 			if (/^https?:|^blob:|^data:/.test(ref)) continue;
 			const rel = ref.split('?')[0].split('#')[0].replace(/^\\.\\//, '').replace(/^\\//, '');
