@@ -539,8 +539,9 @@ async function main() {
 		console.log('\n-- production /index.js initiator trace --');
 		await send('Page.navigate', { url: BASE + '/' });
 		for (let i = 0; i < 40; i++) {
-			const ready = await evaluate('document.readyState === "complete"')
-				.catch(() => false);
+			const ready = await evaluate(
+				'document.readyState === "complete" && !!document.body && document.body.classList.contains("loaded") && !!window.FileOpen && !!window.FileSave && !!window.AppConfig'
+			).catch(() => false);
 			if (ready) break;
 			await sleep(500);
 		}
