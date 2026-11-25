@@ -245,6 +245,16 @@ async function main() {
 	const bundleBody = bundle.body || '';
 	check('bundle.js delivered as readable JS',
 		bundleBody.indexOf(BRAND.name) !== -1, bundleBody.length + ' bytes');
+
+	// GIF export creates a classic Worker at runtime; verify the exact deploy URL,
+	// not just that the encoder bundle contains a workerScript string.
+	const gifWorker = await http(BASE + '/src/js/libs/gifjs/gif.worker.js');
+	const gifWorkerType = gifWorker.headers.get('content-type') || '';
+	check('GIF encoder worker is shipped and served as JavaScript',
+		gifWorker.status === 200
+			&& /javascript|ecmascript/.test(gifWorkerType)
+			&& /self\\.onmessage/.test(gifWorker.body || ''),
+		'HTTP ' + gifWorker.status + ' / ' + gifWorkerType + ' / ' + (gifWorker.body || '').length + ' bytes');
 	// 邮箱在配置里是拆开存的，完整地址只应在运行时拼出来，不该出现在静态文本里
 	check('no plaintext contact email in shipped HTML',
 		!BRAND_EMAIL || idx.body.indexOf(BRAND_EMAIL) === -1, BRAND_EMAIL || '(none configured)');
