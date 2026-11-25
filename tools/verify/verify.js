@@ -354,6 +354,35 @@ async function main() {
 	const pending = new Map();
 	const errors = [];
 	const requests = [];
+	// Targeted production diagnostic: preserve only the /index.js request's
+	// sanitized URL and initiator stack. Never record query strings, headers,
+	// cookies, request bodies or arbitrary user stream/image URLs.
+	const indexJsTrace = [];
+	const indexJsTraceById = new Map();
+	const gifWorkerTrace = [];
+	const gifWorkerTraceById = new Map();
+	const sanitizeTraceUrl = value => {
+		try {
+			const u = new URL(value);
+			return u.origin + u.pathname;
+		} catch (e) {
+			return String(value || '').split(/[?#]/)[0];
+		}
+	};
+	function traceStack(stack) {
+		const frames = [];
+		for (let current = stack; current; current = current.parent) {
+			for (const frame of current.callFrames || []) {
+				frames.push({
+					functionName: frame.functionName || '',
+					url: sanitizeTraceUrl(frame.url),
+					lineNumber: frame.lineNumber,
+					columnNumber: frame.columnNumber,
+				});
+			}
+		}
+		return frames;
+	}
 	// 主框架导航记录：用来抓"页面自己在没人要求的情况下刷新"
 	const frameNavigations = [];
 	// 页面弹过的原生对话框（alert/confirm/beforeunload）
@@ -386,9 +415,69 @@ async function main() {
 		if (msg.method === 'Log.entryAdded' && msg.params.entry.level === 'error') {
 			errors.push('log: ' + msg.params.entry.text);
 		}
+		if (msg.method === 'Network.requestWillBeSent') {
+			const p = msg.params;
+			const rawUrl = p.request && p.request.url;
+			let parsedUrl = null;
+			try { parsedUrl = new URL(rawUrl); } catch (e) { /* non-URL request */ }
+			if (parsedUrl && (parsedUrl.pathname === '/index.js'
+				|| parsedUrl.pathname.endsWith('/src/js/libs/gifjs/gif.worker.js'))) {
+				const isIndex = parsedUrl.pathname === '/index.js';
+				const initiator = p.initiator || {};
+				const record = {
+					requestId: p.requestId,
+					url: sanitizeTraceUrl(rawUrl),
+					method: p.request.method || 'GET',
+					type: p.type || '',
+					documentURL: sanitizeTraceUrl(p.documentURL),
+					initiator: {
+						type: initiator.type || '',
+						url: sanitizeTraceUrl(initiator.url),
+						lineNumber: initiator.lineNumber ?? null,
+						columnNumber: initiator.columnNumber ?? null,
+						stack: traceStack(initiator.stack),
+					},
+					redirectResponse: p.redirectResponse ? {
+						status: p.redirectResponse.status,
+						mimeType: p.redirectResponse.mimeType || '',
+					} : null,
+					response: null,
+					loadingFailure: null,
+				};
+				if (isIndex) {
+					indexJsTrace.push(record);
+					indexJsTraceById.set(p.requestId, record);
+				} else {
+					gifWorkerTrace.push(record);
+					gifWorkerTraceById.set(p.requestId, record);
+				}
+			}
+		}
 		if (msg.method === 'Network.responseReceived') {
-			const r = msg.params.response;
+			const p = msg.params;
+			const r = p.response;
 			if (r.status >= 400) requests.push(r.status + ' ' + r.url);
+			const trace = indexJsTraceById.get(p.requestId) || gifWorkerTraceById.get(p.requestId);
+			if (trace) {
+				trace.response = {
+					status: r.status,
+					statusText: r.statusText || '',
+					mimeType: r.mimeType || '',
+					protocol: r.protocol || '',
+					fromDiskCache: !!r.fromDiskCache,
+					fromServiceWorker: !!r.fromServiceWorker,
+				};
+			}
+		}
+		if (msg.method === 'Network.loadingFailed') {
+			const trace = indexJsTraceById.get(msg.params.requestId) || gifWorkerTraceById.get(msg.params.requestId);
+			if (trace) {
+				trace.loadingFailure = {
+					errorText: msg.params.errorText || '',
+					canceled: !!msg.params.canceled,
+					blockedReason: msg.params.blockedReason || '',
+				};
+			}
 		}
 		if (msg.method === 'Page.frameNavigated' && !msg.params.frame.parentId) {
 			frameNavigations.push(msg.params.frame.url);
@@ -442,6 +531,88 @@ async function main() {
 	await send('Emulation.setDeviceMetricsOverride', {
 		width: 1440, height: 900, deviceScaleFactor: 1, mobile: false,
 	});
+
+	// Narrow production-only diagnostic path. It deliberately loads the deployed
+	// homepage once, waits for delayed requests, and writes a redacted trace.
+	// Set TRACE_INDEX_REQUEST=1 and BASE=https://draw.digdevbox.com to use it.
+	if (process.env.TRACE_INDEX_REQUEST === '1') {
+		console.log('\n-- production /index.js initiator trace --');
+		await send('Page.navigate', { url: BASE + '/' });
+		for (let i = 0; i < 40; i++) {
+			const ready = await evaluate(
+				'document.readyState === "complete" && !!document.body && document.body.classList.contains("loaded") && !!window.FileOpen && !!window.FileSave && !!window.AppConfig'
+			).catch(() => false);
+			if (ready) break;
+			await sleep(500);
+		}
+		// Exercise the existing GIF export flow with two tiny in-memory frames.
+		// This is a disposable browser profile; no user file or persistent storage is used.
+		const exportProbe = JSON.parse(await evaluate(`(async function(){
+			try {
+				if (!window.FileOpen || !window.FileSave || !window.AppConfig || !Array.isArray(window.AppConfig.layers)) {
+					return JSON.stringify({ready:false, reason:'editor file APIs or layer model are not available'});
+				}
+				const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAG0lEQVQYV2N89+7df0FBQQbG/////3///j0DAF9wCsg9spQfAAAAAElFTkSuQmCC';
+				const waitFor = async predicate => {
+					const deadline = Date.now() + 6000;
+					while (Date.now() < deadline) {
+						if (predicate()) return true;
+						await new Promise(resolve => setTimeout(resolve, 100));
+					}
+					return !!predicate();
+				};
+				const before = window.AppConfig.layers.length;
+				window.FileOpen.on_paste(png, 2, 2);
+				const firstReady = await waitFor(() => window.AppConfig.layers.some(layer => layer.type === 'image'));
+				if (!firstReady) {
+					return JSON.stringify({ready:false, reason:'first synthetic image layer was not inserted', layersBefore:before, layersAfterFirst:window.AppConfig.layers.length});
+				}
+				window.FileOpen.on_paste(png, 2, 2);
+				const twoReady = await waitFor(() => window.AppConfig.layers.filter(layer => layer.type === 'image').length >= 2);
+				const after = window.AppConfig.layers.length;
+				const imageLayers = window.AppConfig.layers.filter(layer => layer.type === 'image').length;
+				if (!twoReady) {
+					return JSON.stringify({ready:false, reason:'two synthetic image layers were not inserted', layersBefore:before, layersAfter:after, imageLayers});
+				}
+				window.FileSave.save_action({
+					name: 'indexjs-initiator-trace.gif',
+					type: 'GIF - Graphics Interchange Format',
+					quality: 90,
+					delay: 100,
+					layers: 'All',
+				});
+				return JSON.stringify({ready:true, layersBefore:before, layersAfter:after, imageLayers, exportStarted:true});
+			} catch (error) {
+				return JSON.stringify({ready:false, reason:error && error.message ? error.message : String(error)});
+			}
+		})()`));
+		console.log('GIF export probe: ' + JSON.stringify(exportProbe));
+		const waitMs = Math.max(1000, Math.min(30000, Number(process.env.TRACE_WAIT_MS || 10000)));
+		console.log('Waiting ' + waitMs + 'ms for /index.js and GIF-worker requests');
+		await sleep(waitMs);
+		const report = {
+			base: sanitizeTraceUrl(BASE),
+			capturedAt: new Date().toISOString(),
+			waitMs,
+			exportProbe,
+			requestCount: indexJsTrace.length,
+			requests: indexJsTrace,
+			gifWorkerRequestCount: gifWorkerTrace.length,
+			gifWorkerRequests: gifWorkerTrace,
+			privacy: 'Query strings, headers, cookies, request bodies and unrelated URLs are not recorded.',
+		};
+		const tracePath = path.join(OUT, 'indexjs-network-trace.json');
+		fs.writeFileSync(tracePath, JSON.stringify(report, null, 2) + '\n');
+		console.log(JSON.stringify(report, null, 2));
+		await teardown();
+		if (!indexJsTrace.length) {
+			console.error('No /index.js request was observed during homepage load or the GIF export probe.');
+			process.exitCode = 2;
+		} else {
+			console.log('Captured ' + indexJsTrace.length + ' /index.js request(s) to ' + tracePath);
+		}
+		return;
+	}
 
 	// ---------- 首屏 ----------
 	console.log('\n-- first paint --');
