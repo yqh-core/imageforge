@@ -14,7 +14,7 @@
   background:
     radial-gradient(circle at 14% 12%, rgba(20, 184, 166, .14), transparent 34%),
     radial-gradient(circle at 90% 88%, rgba(59, 130, 246, .10), transparent 32%),
-    color-mix(in srgb, var(--background) 93%, transparent);
+    color-mix(in srgb, var(--dd-bg) 93%, transparent);
 }
 .if-welcome[hidden] { display: none !important; }
 .if-welcome-card {
