@@ -354,6 +354,33 @@ async function main() {
 	const pending = new Map();
 	const errors = [];
 	const requests = [];
+	// Targeted production diagnostic: preserve only the /index.js request's
+	// sanitized URL and initiator stack. Never record query strings, headers,
+	// cookies, request bodies or arbitrary user stream/image URLs.
+	const indexJsTrace = [];
+	const indexJsTraceById = new Map();
+	const sanitizeTraceUrl = value => {
+		try {
+			const u = new URL(value);
+			return u.origin + u.pathname;
+		} catch (e) {
+			return String(value || '').split(/[?#]/)[0];
+		}
+	};
+	function traceStack(stack) {
+		const frames = [];
+		for (let current = stack; current; current = current.parent) {
+			for (const frame of current.callFrames || []) {
+				frames.push({
+					functionName: frame.functionName || '',
+					url: sanitizeTraceUrl(frame.url),
+					lineNumber: frame.lineNumber,
+					columnNumber: frame.columnNumber,
+				});
+			}
+		}
+		return frames;
+	}
 	// 主框架导航记录：用来抓"页面自己在没人要求的情况下刷新"
 	const frameNavigations = [];
 	// 页面弹过的原生对话框（alert/confirm/beforeunload）
@@ -386,9 +413,62 @@ async function main() {
 		if (msg.method === 'Log.entryAdded' && msg.params.entry.level === 'error') {
 			errors.push('log: ' + msg.params.entry.text);
 		}
+		if (msg.method === 'Network.requestWillBeSent') {
+			const p = msg.params;
+			const rawUrl = p.request && p.request.url;
+			let parsedUrl = null;
+			try { parsedUrl = new URL(rawUrl); } catch (e) { /* non-URL request */ }
+			if (parsedUrl && parsedUrl.pathname === '/index.js') {
+				const initiator = p.initiator || {};
+				const record = {
+					requestId: p.requestId,
+					url: sanitizeTraceUrl(rawUrl),
+					method: p.request.method || 'GET',
+					type: p.type || '',
+					documentURL: sanitizeTraceUrl(p.documentURL),
+					initiator: {
+						type: initiator.type || '',
+						url: sanitizeTraceUrl(initiator.url),
+						lineNumber: initiator.lineNumber ?? null,
+						columnNumber: initiator.columnNumber ?? null,
+						stack: traceStack(initiator.stack),
+					},
+					redirectResponse: p.redirectResponse ? {
+						status: p.redirectResponse.status,
+						mimeType: p.redirectResponse.mimeType || '',
+					} : null,
+					response: null,
+					loadingFailure: null,
+				};
+				indexJsTrace.push(record);
+				indexJsTraceById.set(p.requestId, record);
+			}
+		}
 		if (msg.method === 'Network.responseReceived') {
-			const r = msg.params.response;
+			const p = msg.params;
+			const r = p.response;
 			if (r.status >= 400) requests.push(r.status + ' ' + r.url);
+			const trace = indexJsTraceById.get(p.requestId);
+			if (trace) {
+				trace.response = {
+					status: r.status,
+					statusText: r.statusText || '',
+					mimeType: r.mimeType || '',
+					protocol: r.protocol || '',
+					fromDiskCache: !!r.fromDiskCache,
+					fromServiceWorker: !!r.fromServiceWorker,
+				};
+			}
+		}
+		if (msg.method === 'Network.loadingFailed') {
+			const trace = indexJsTraceById.get(msg.params.requestId);
+			if (trace) {
+				trace.loadingFailure = {
+					errorText: msg.params.errorText || '',
+					canceled: !!msg.params.canceled,
+					blockedReason: msg.params.blockedReason || '',
+				};
+			}
 		}
 		if (msg.method === 'Page.frameNavigated' && !msg.params.frame.parentId) {
 			frameNavigations.push(msg.params.frame.url);
@@ -442,6 +522,42 @@ async function main() {
 	await send('Emulation.setDeviceMetricsOverride', {
 		width: 1440, height: 900, deviceScaleFactor: 1, mobile: false,
 	});
+
+	// Narrow production-only diagnostic path. It deliberately loads the deployed
+	// homepage once, waits for delayed requests, and writes a redacted trace.
+	// Set TRACE_INDEX_REQUEST=1 and BASE=https://draw.digdevbox.com to use it.
+	if (process.env.TRACE_INDEX_REQUEST === '1') {
+		console.log('\\n-- production /index.js initiator trace --');
+		await send('Page.navigate', { url: BASE + '/' });
+		for (let i = 0; i < 40; i++) {
+			const ready = await evaluate('document.readyState === "complete"')
+				.catch(() => false);
+			if (ready) break;
+			await sleep(500);
+		}
+		const waitMs = Math.max(1000, Math.min(30000, Number(process.env.TRACE_WAIT_MS || 10000)));
+		console.log('Waiting ' + waitMs + 'ms for deferred /index.js requests');
+		await sleep(waitMs);
+		const report = {
+			base: sanitizeTraceUrl(BASE),
+			capturedAt: new Date().toISOString(),
+			waitMs,
+			requestCount: indexJsTrace.length,
+			requests: indexJsTrace,
+			privacy: 'Query strings, headers, cookies, request bodies and unrelated URLs are not recorded.',
+		};
+		const tracePath = path.join(OUT, 'indexjs-network-trace.json');
+		fs.writeFileSync(tracePath, JSON.stringify(report, null, 2) + '\\n');
+		console.log(JSON.stringify(report, null, 2));
+		await teardown();
+		if (!indexJsTrace.length) {
+			console.error('No /index.js request was observed during the diagnostic window.');
+			process.exitCode = 2;
+		} else {
+			console.log('Captured ' + indexJsTrace.length + ' /index.js request(s) to ' + tracePath);
+		}
+		return;
+	}
 
 	// ---------- 首屏 ----------
 	console.log('\n-- first paint --');
