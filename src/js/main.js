@@ -9,6 +9,7 @@ import './../css/utility.css';
 import './../css/component.css';
 import './../css/layout.css';
 import './../css/menu.css';
+import './../css/welcome.css';
 import './../css/print.css';
 import './../../node_modules/alertifyjs/build/css/alertify.min.css';
 //js
@@ -50,6 +51,14 @@ window.addEventListener('load', function (e) {
 	window.AppConfig = config;
 	window.State = Base_state;
 	window.FileOpen = File_open;
+
+	// The first-open CTA uses the editor's existing local file import flow.
+	var welcomeOpen = document.getElementById('imageforge-welcome-open');
+	if (welcomeOpen) {
+		welcomeOpen.addEventListener('click', function () {
+			File_open.open_file();
+		});
+	}
 	window.FileSave = File_save;
 
 	// Render all

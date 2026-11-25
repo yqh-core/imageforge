@@ -103,6 +103,36 @@
 			<canvas class="ruler_top" id="ruler_top"></canvas>
 
 			<div class="main_wrapper" id="main_wrapper">
+				<section class="if-welcome" id="imageforge-welcome" data-testid="imageforge-welcome" aria-labelledby="if-welcome-title">
+					<div class="if-welcome-card">
+						<div class="if-welcome-copy">
+							<p class="if-welcome-eyebrow"><span aria-hidden="true"></span> IMAGEFORGE · BROWSER IMAGE EDITOR</p>
+							<h2 id="if-welcome-title">Your canvas starts here.</h2>
+							<p class="if-welcome-intro">Open a photo or graphic and make it yours with layers, selections, drawing tools and precise adjustments.</p>
+							<button class="if-welcome-open" id="imageforge-welcome-open" type="button" data-testid="imageforge-open-image">
+								<span class="if-welcome-open-icon" aria-hidden="true">↥</span>
+								<span>Open an image</span>
+								<span class="if-welcome-open-arrow" aria-hidden="true">→</span>
+							</button>
+							<p class="if-welcome-drop">Or drag and drop an image anywhere on the canvas</p>
+							<div class="if-welcome-formats"><span>PNG</span><span>JPEG</span><span>WebP</span><span>GIF</span><span>SVG</span><span>AVIF</span></div>
+						</div>
+						<div class="if-welcome-preview" aria-label="Editing capabilities preview">
+							<div class="if-welcome-preview-top"><span>WORKSPACE</span><span><i></i> READY</span></div>
+							<div class="if-welcome-art">
+								<div class="if-welcome-art-sun"></div>
+								<div class="if-welcome-art-hill"></div>
+								<div class="if-welcome-art-hill if-welcome-art-hill-back"></div>
+							</div>
+							<div class="if-welcome-layer"><span class="if-layer-thumb"></span><span><b>Image layer</b><small>Move · crop · transform</small></span><em>01</em></div>
+							<div class="if-welcome-layer"><span class="if-layer-thumb if-layer-thumb-second"></span><span><b>Adjustment layer</b><small>Color · filter · opacity</small></span><em>02</em></div>
+						</div>
+						<div class="if-welcome-footer">
+							<span><b>Private by design</b> Your images are processed locally in this browser — no upload required.</span>
+							<span class="if-welcome-tools">LAYERS <i></i> BRUSH <i></i> CROP <i></i> FILTERS</span>
+						</div>
+					</div>
+				</section>
 				<div class="canvas_wrapper" id="canvas_wrapper">
 					<div id="mouse"></div>
 					<div class="transparent-grid" id="canvas_minipaint_background"></div>

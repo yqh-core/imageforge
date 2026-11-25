@@ -43,6 +43,14 @@ class File_open_class {
 		this.maybe_file_open_url_handler();
 	}
 
+	dismiss_welcome() {
+		var welcome = document.getElementById('imageforge-welcome');
+		if (welcome) {
+			welcome.hidden = true;
+			welcome.setAttribute('aria-hidden', 'true');
+		}
+	}
+
 	events() {
 		var _this = this;
 
@@ -68,6 +76,7 @@ class File_open_class {
 	}
 
 	on_paste(data, width, height) {
+		this.dismiss_welcome();
 		var new_layer = {
 			name: 'Paste',
 			type: 'image',
@@ -218,6 +227,7 @@ class File_open_class {
 		var img = new Image();
 		img.crossOrigin = "Anonymous";
 		img.onload = function () {
+			_this.dismiss_welcome();
 			var new_layer = {
 				name: "Data URL",
 				type: 'image',
@@ -309,6 +319,7 @@ class File_open_class {
 
 			FR.onload = function (event) {
 				if (this.file.type.match('image.*')) {
+					_this.dismiss_welcome();
 					var order = auto_increment + order_map[this.file.name];
 					//image
 					var new_layer = {
@@ -370,6 +381,7 @@ class File_open_class {
 						//below is fix for firefox, it has empty type
 						|| (this.file.type == '' && this.file.name.match(/\.(png|jpg|jpeg|webp|gif|avif)/g))) {
 						//image
+						_this.dismiss_welcome();
 						var new_layer = {
 							name: this.file.name,
 							type: 'image',
@@ -467,6 +479,7 @@ class File_open_class {
 		var img = new Image();
 		img.crossOrigin = "Anonymous";
 		img.onload = function () {
+			_this.dismiss_welcome();
 			var new_layer = {
 				name: layer_name,
 				type: 'image',
@@ -669,6 +682,7 @@ class File_open_class {
 		await app.State.do_action(
 			new app.Actions.Bundle_action('open_json_file', 'Open JSON File', actions)
 		);
+		this.dismiss_welcome();
 	}
 
 	/**
