@@ -598,7 +598,7 @@ class File_save_class {
 				width: config.WIDTH,
 				height: config.HEIGHT,
 				dither: 'FloydSteinberg-serpentine',
-				workerScript: './src/js/libs/gifjs/gif.worker.js',
+				workerScript: './src/js/libs/gifjs/gif.worker.js?v=gif-worker-20261125-1',
 			};
 			if (config.TRANSPARENCY == true) {
 				gif_settings.transparent = 'rgba(0,0,0,0)';
