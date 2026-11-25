@@ -527,7 +527,7 @@ async function main() {
 	// homepage once, waits for delayed requests, and writes a redacted trace.
 	// Set TRACE_INDEX_REQUEST=1 and BASE=https://draw.digdevbox.com to use it.
 	if (process.env.TRACE_INDEX_REQUEST === '1') {
-		console.log('\\n-- production /index.js initiator trace --');
+		console.log('\n-- production /index.js initiator trace --');
 		await send('Page.navigate', { url: BASE + '/' });
 		for (let i = 0; i < 40; i++) {
 			const ready = await evaluate('document.readyState === "complete"')
@@ -547,7 +547,7 @@ async function main() {
 			privacy: 'Query strings, headers, cookies, request bodies and unrelated URLs are not recorded.',
 		};
 		const tracePath = path.join(OUT, 'indexjs-network-trace.json');
-		fs.writeFileSync(tracePath, JSON.stringify(report, null, 2) + '\\n');
+		fs.writeFileSync(tracePath, JSON.stringify(report, null, 2) + '\n');
 		console.log(JSON.stringify(report, null, 2));
 		await teardown();
 		if (!indexJsTrace.length) {
