@@ -150,8 +150,14 @@ function checkReferences(files, errors) {
 	const bundlePath = path.join(ROOT, 'dist', 'bundle.js');
 	if (fs.existsSync(bundlePath)) {
 		const bundle = fs.readFileSync(bundlePath, 'utf8');
-		for (const match of bundle.matchAll(/workerScript\s*:\s*["']([^"']+)["']/g)) {
-			const ref = match[1];
+		const workerRefs = Array.from(bundle.matchAll(/workerScript\\s*:\\s*["']([^"']+)["']/g), match => match[1]);
+		const expectedGifWorker = './src/js/libs/gifjs/gif.worker.js';
+		if (!workerRefs.includes(expectedGifWorker)) {
+			errors.push(expectedGifWorker + '  (explicit GIF Worker reference is missing from dist/bundle.js)');
+		}
+		// gif.js.optimized also embeds the unused default path "gif.worker.js";
+		// the application overrides it with expectedGifWorker at every export call.
+		for (const ref of workerRefs.filter(value => value !== 'gif.worker.js')) {
 			if (/^https?:|^blob:|^data:/.test(ref)) continue;
 			let rel = ref.split('?')[0].split('#')[0];
 			if (rel.startsWith('./')) rel = rel.slice(2);
@@ -160,6 +166,9 @@ function checkReferences(files, errors) {
 			if (!fs.existsSync(path.join(ROOT, rel))) {
 				errors.push(ref + '  (Worker URL in dist/bundle.js points to a missing file)');
 			} else if (!files.includes(rel)) {
+				errors.push(ref + '  (Worker URL exists but is absent from the production pack allowlist)');
+			}
+		} else if (!files.includes(rel)) {
 				errors.push(ref + '  (Worker URL exists but is absent from the production pack allowlist)');
 			}
 		}
