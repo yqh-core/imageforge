@@ -538,11 +538,17 @@ async function main() {
 		mobileWelcome.visible && mobileWelcome.buttonVisible && mobileWelcome.withinWorkspace,
 		JSON.stringify(mobileWelcome));
 	await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
-	// Exercise the real document-level paste handler with an in-memory PNG clipboard item.
-	// This proves the new first-use instruction maps to a working import path, not just copy.
+
+	const menuCount = await evaluate('document.querySelectorAll("#main_menu a").length');
+	check('main menu bar rendered', menuCount > 5, 'items: ' + menuCount);
+
+	await screenshot('home.png');
+
+	// Exercise the real document-level paste handler after the pristine welcome screenshot.
+	// Check the editor's layer model (not a fragile DOM row count), then undo the fixture so
+	// subsequent offline checks do not trigger the browser's unsaved-document warning.
 	const clipboardImport = JSON.parse(await evaluate(`(async function(){
 		var welcome = document.getElementById('imageforge-welcome');
-		var before = document.querySelectorAll('#layers > .item').length;
 		var pngUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAG0lEQVQYV2N89+7df0FBQQbG/////3///j0DAF9wCsg9spQfAAAAAElFTkSuQmCC';
 		try {
 			var blob = await (await fetch(pngUrl)).blob();
@@ -551,13 +557,26 @@ async function main() {
 			transfer.items.add(file);
 			var event = new ClipboardEvent('paste', { clipboardData: transfer, bubbles: true, cancelable: true });
 			document.body.dispatchEvent(event);
-			await new Promise(resolve => setTimeout(resolve, 800));
+			var names = () => (window.AppConfig.layers || []).map(layer => layer.name);
+			for (var i = 0; i < 30 && !names().includes('Paste'); i++) {
+				await new Promise(resolve => setTimeout(resolve, 100));
+			}
+			var imported = names().includes('Paste');
+			var importedNames = names();
+			if (imported && window.State && typeof window.State.undo === 'function') {
+				window.State.undo();
+				for (var j = 0; j < 30 && names().includes('Paste'); j++) {
+					await new Promise(resolve => setTimeout(resolve, 100));
+				}
+			}
 			return JSON.stringify({
 				clipboardAvailable: !!event.clipboardData && event.clipboardData.items.length === 1,
 				defaultPrevented: event.defaultPrevented,
 				welcomeHidden: !!welcome && welcome.hidden,
-				before: before,
-				after: document.querySelectorAll('#layers > .item').length,
+				imported,
+				importedNames,
+				undoRestored: !names().includes('Paste'),
+				finalNames: names(),
 			});
 		} catch (error) {
 			return JSON.stringify({ error: error.message });
@@ -565,13 +584,10 @@ async function main() {
 	})()`));
 	check('Ctrl/Command+V clipboard paste imports an image and dismisses welcome',
 		clipboardImport.clipboardAvailable && clipboardImport.defaultPrevented && clipboardImport.welcomeHidden
-			&& clipboardImport.after === clipboardImport.before + 1,
+			&& clipboardImport.imported,
 		JSON.stringify(clipboardImport));
-
-	const menuCount = await evaluate('document.querySelectorAll("#main_menu a").length');
-	check('main menu bar rendered', menuCount > 5, 'items: ' + menuCount);
-
-	await screenshot('home.png');
+	check('clipboard verification undoes its fixture before the offline test',
+		clipboardImport.undoRestored, JSON.stringify(clipboardImport.finalNames));
 
 	// ---------- 降级路径：删掉上游 demo key 后不能"静默失效" ----------
 	// 上游 miniPaint 自带两个公开的 demo key，全世界每一份都在用，随时可能被
