@@ -153,7 +153,9 @@ function checkReferences(files, errors) {
 		for (const match of bundle.matchAll(/workerScript\s*:\s*["']([^"']+)["']/g)) {
 			const ref = match[1];
 			if (/^https?:|^blob:|^data:/.test(ref)) continue;
-			const rel = ref.split('?')[0].split('#')[0].replace(/^\\.\\//, '').replace(/^\\//, '');
+			let rel = ref.split('?')[0].split('#')[0];
+			if (rel.startsWith('./')) rel = rel.slice(2);
+			else if (rel.startsWith('/')) rel = rel.slice(1);
 			if (!rel) continue;
 			if (!fs.existsSync(path.join(ROOT, rel))) {
 				errors.push(ref + '  (Worker URL in dist/bundle.js points to a missing file)');
