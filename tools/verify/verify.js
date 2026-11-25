@@ -550,7 +550,7 @@ async function main() {
 			var transfer = new DataTransfer();
 			transfer.items.add(file);
 			var event = new ClipboardEvent('paste', { clipboardData: transfer, bubbles: true, cancelable: true });
-			document.dispatchEvent(event);
+			document.body.dispatchEvent(event);
 			await new Promise(resolve => setTimeout(resolve, 800));
 			return JSON.stringify({
 				clipboardAvailable: !!event.clipboardData && event.clipboardData.items.length === 1,
