@@ -117,6 +117,9 @@ class File_new_class {
 			])
 		);
 
+		var welcome = document.getElementById('imageforge-welcome');
+		if (welcome) { welcome.hidden = true; welcome.setAttribute('aria-hidden', 'true'); }
+
 		//sleep, lets wait till DOM is finished
 		await new Promise(r => setTimeout(r, 10));
 
