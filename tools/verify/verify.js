@@ -475,6 +475,29 @@ async function main() {
 	})()`);
 	check('editor canvas mounted and sized', !!canvasOk);
 
+	const gifWorkerBoot = await evaluate(`(async function(){
+		return await new Promise(resolve => {
+			let worker;
+			let settled = false;
+			const finish = value => {
+				if (settled) return;
+				settled = true;
+				if (worker) worker.terminate();
+				resolve(value);
+			};
+			try {
+				worker = new Worker('/src/js/libs/gifjs/gif.worker.js');
+			} catch (error) {
+				finish('create failed: ' + error.message);
+				return;
+			}
+			worker.onerror = event => finish('worker error: ' + (event.message || 'unknown'));
+			setTimeout(() => finish('loaded'), 500);
+		});
+	})()`);
+	check('GIF encoder worker starts in the real browser without CSP/runtime errors',
+		gifWorkerBoot === 'loaded', String(gifWorkerBoot));
+
 	const welcomeState = JSON.parse(await evaluate(`(function(){
 		var welcome = document.getElementById('imageforge-welcome');
 		var title = document.getElementById('if-welcome-title');
