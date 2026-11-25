@@ -54,3 +54,31 @@ jobs:
           }
           console.log('ImageForge SEO metadata PASS');
           NODE
+
+  # One-shot production trace for issue #10. Only the explicitly named diagnostic
+  # branch runs this job; it uses the repository's real Chrome/CDP verifier against
+  # the production origin and uploads a query/header-free /index.js initiator trace.
+  trace-production-indexjs:
+    if: github.event_name == 'pull_request' && startsWith(github.head_ref, 'trace/imageforge-indexjs-')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Capture production /index.js request initiator
+        env:
+          BASE: https://draw.digdevbox.com
+          TRACE_INDEX_REQUEST: '1'
+          TRACE_WAIT_MS: '15000'
+          OUT: .verify
+        run: node tools/verify/verify.js
+      - name: Upload sanitized initiator trace
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: imageforge-indexjs-initiator-trace
+          path: .verify/indexjs-network-trace.json
+          if-no-files-found: warn
+          retention-days: 14
