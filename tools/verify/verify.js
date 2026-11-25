@@ -464,6 +464,43 @@ async function main() {
 		return !!c && c.width > 100 && c.height > 100;
 	})()`);
 	check('editor canvas mounted and sized', !!canvasOk);
+
+	const welcomeState = JSON.parse(await evaluate(`(function(){
+		var welcome = document.getElementById('imageforge-welcome');
+		var title = document.getElementById('if-welcome-title');
+		var button = document.getElementById('imageforge-welcome-open');
+		var box = welcome && welcome.getBoundingClientRect();
+		return JSON.stringify({
+			visible: !!welcome && !welcome.hidden && !!box && box.width > 100 && box.height > 100,
+			title: title ? title.textContent.trim() : '',
+			button: !!button && button.textContent.indexOf('Open an image') !== -1,
+		});
+	})()`));
+	check('first-open ImageForge welcome is visible with an editor-specific headline',
+		welcomeState.visible && /Your canvas starts here/i.test(welcomeState.title), JSON.stringify(welcomeState));
+	check('welcome CTA is connected to the existing local file-open action',
+		welcomeState.button && await evaluate(`typeof window.FileOpen === 'object' && typeof window.FileOpen.open_file === 'function'`),
+		'FileOpen.open_file available');
+
+	// Also check the welcome is bounded at a phone width; the app keeps its editor
+	// shell, while this first-use card should collapse into a single-column action.
+	await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+	const mobileWelcome = JSON.parse(await evaluate(`(function(){
+		var box = document.getElementById('imageforge-welcome');
+		var action = document.getElementById('imageforge-welcome-open');
+		var r = box && box.getBoundingClientRect();
+		var b = action && action.getBoundingClientRect();
+		return JSON.stringify({
+			visible: !!box && !box.hidden && !!r && r.width > 0,
+			buttonVisible: !!action && !!b && b.width > 0 && b.height > 0,
+			withinWorkspace: !!r && r.left >= -1 && r.right <= window.innerWidth + 1,
+		});
+	})()`));
+	check('welcome CTA remains visible on a 390px mobile viewport',
+		mobileWelcome.visible && mobileWelcome.buttonVisible && mobileWelcome.withinWorkspace,
+		JSON.stringify(mobileWelcome));
+	await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
+
 	const menuCount = await evaluate('document.querySelectorAll("#main_menu a").length');
 	check('main menu bar rendered', menuCount > 5, 'items: ' + menuCount);
 
