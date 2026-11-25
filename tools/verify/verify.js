@@ -486,7 +486,7 @@ async function main() {
 				resolve(value);
 			};
 			try {
-				worker = new Worker('/src/js/libs/gifjs/gif.worker.js');
+				worker = new Worker('/src/js/libs/gifjs/gif.worker.js?v=gif-worker-20261125-1');
 			} catch (error) {
 				finish('create failed: ' + error.message);
 				return;
