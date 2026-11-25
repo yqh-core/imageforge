@@ -213,3 +213,22 @@
   .if-welcome-open { transition: none; }
   .if-welcome-open:hover { transform: none; }
 }
+
+
+/* Keep clipboard import discoverable without competing with the primary Open action. */
+.if-welcome-paste {
+  margin: 0 0 15px;
+  color: var(--dd-text-soft);
+  font-size: 11px;
+  line-height: 1.55;
+}
+.if-welcome-paste kbd {
+  display: inline-block;
+  padding: 1px 5px;
+  border: 1px solid var(--dd-border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  color: var(--dd-text);
+  background: var(--dd-surface-2);
+  font: 700 10px/1.5 var(--dd-font-mono, ui-monospace, monospace);
+}
